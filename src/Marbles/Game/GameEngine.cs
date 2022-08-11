@@ -15,16 +15,37 @@ public class GameEngine
 
     private Font _font = new("Segoe UI", 16, GraphicsUnit.Point);
     private Pen _gridPen = new(new HatchBrush(HatchStyle.DarkUpwardDiagonal, Color.DarkSlateGray), 1);
-    private Menu _menu = new Menu();
+    private MainMenu _mainMenu;
 
     private DateTime _lastDraw = DateTime.Now;
     private DateTime _lastRateTime = DateTime.Now;
     private int _lastRate = 25;
     private int _rate = 0;
 
+    public GameEngine()
+    {
+        _mainMenu = new MainMenu(this);
+    }
+
+    public bool KeyPress(Keys key)
+    {
+        if (key == Keys.F12) ShowDebugInfo = !ShowDebugInfo;
+        else if (key == Keys.Escape)
+        {
+            ShowMenu = !ShowMenu;
+            _mainMenu.ShowMenu(ShowMenu);
+        }
+        else if (ShowMenu)
+        {
+            _mainMenu.KeyPress(key);
+            return false;
+        }
+        return true;
+    }
+
     public async Task LoadAsync()
     {
-        await _menu.LoadAsync();
+        await _mainMenu.LoadAsync();
         await Task.CompletedTask;
     }
 
@@ -48,7 +69,7 @@ public class GameEngine
 
         if (ShowMenu)
         {
-            _menu.Draw(graphics, clipRectangle);
+            _mainMenu.Draw(graphics, clipRectangle);
         }
         else
         {

@@ -32,13 +32,14 @@ public partial class MainForm : Form
             return;
         }
 
-        const bool off = false;
-        if (e.KeyCode == Keys.Up || e.KeyCode == Keys.W) _gameEngine.KeyUp = off;
-        else if (e.KeyCode == Keys.Down || e.KeyCode == Keys.S) _gameEngine.KeyDown = off;
-        else if (e.KeyCode == Keys.Left || e.KeyCode == Keys.A) _gameEngine.KeyLeft = off;
-        else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.D) _gameEngine.KeyRight = off;
-        else if (e.KeyCode == Keys.F12) _gameEngine.ShowDebugInfo = !_gameEngine.ShowDebugInfo;
-        else if (e.KeyCode == Keys.Escape) _gameEngine.ShowMenu = !_gameEngine.ShowMenu;
+        if (_gameEngine.KeyPress(e.KeyCode))
+        {
+            const bool off = false;
+            if (e.KeyCode == Keys.Up || e.KeyCode == Keys.W) _gameEngine.KeyUp = off;
+            else if (e.KeyCode == Keys.Down || e.KeyCode == Keys.S) _gameEngine.KeyDown = off;
+            else if (e.KeyCode == Keys.Left || e.KeyCode == Keys.A) _gameEngine.KeyLeft = off;
+            else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.D) _gameEngine.KeyRight = off;
+        }
     }
 
     private void MainForm_KeyDown(object sender, KeyEventArgs e)
