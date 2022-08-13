@@ -86,7 +86,7 @@ public class GameEngine
 
         if (ShowDebugInfo)
         {
-            graphics.DrawString($"Rate: {_lastRate} - {Math.Round(drawTimeDiff.TotalMilliseconds, 2)}", _font, Brushes.SlateGray, 10, 5);
+            graphics.DrawString($"Rate: {_lastRate} - {Math.Round(drawTimeDiff.TotalMilliseconds, 2)}", _font, Brushes.SlateGray, 10, clipRectangle.Bottom - 60);
         }
         _lastDraw = DateTime.Now;
     }

@@ -10,12 +10,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{3248030B-BF4
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Marbles", "src\Marbles\Marbles.csproj", "{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Marbles", "src\Marbles\Marbles.csproj", "{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{90BB8E44-5005-4526-8377-3D50A3ACE267}"
 	ProjectSection(SolutionItems) = preProject
 		doc\misc.md = doc\misc.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarblesSimple", "src\MarblesSimple\MarblesSimple.csproj", "{4E48562E-B049-4754-9A8D-984265DAE041}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E48562E-B049-4754-9A8D-984265DAE041}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E48562E-B049-4754-9A8D-984265DAE041}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E48562E-B049-4754-9A8D-984265DAE041}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E48562E-B049-4754-9A8D-984265DAE041}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -34,6 +40,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{90BB8E44-5005-4526-8377-3D50A3ACE267} = {3248030B-BF42-4C94-9005-5DADF58D8044}
+		{4E48562E-B049-4754-9A8D-984265DAE041} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7D0533B4-9F04-4AE8-9733-2A15C6E47D8A}
