@@ -37,7 +37,7 @@ public partial class MainForm : Form
 
     private void UpdateControlEnableState()
     {
-        SelectMarblesNum.Maximum = SelectMarblesNum.Value = _game.YourMarbles;
+        SelectMarblesNum.Value = SelectMarblesNum.Maximum = _game.YourMarbles;
         YouHaveMarblesLeftLabel.Text = $"You have {_game.YourMarbles} marbles left. How many will you choose?";
 
         GroupSelectMarbles.Enabled = _game.State == GameState.ChooseNumberOfMarbles;
