@@ -139,12 +139,35 @@ kubectl apply -f https://raw.githubusercontent.com/PlayFab/thundernetes/main/ins
 # Delete Windows node agent daemonset
 kubectl delete -n thundernetes-system daemonset thundernetes-nodeagent-win
 
+# Install game server api
+kubectl apply -f https://raw.githubusercontent.com/PlayFab/thundernetes/main/samples/gameserverapi/gameserverapi.yaml
+
+# Install latency server
+kubectl apply -f https://raw.githubusercontent.com/PlayFab/thundernetes/main/samples/latencyserver/latencyserver.yaml
+
+# Instal service monitor
+kubectl apply -f https://raw.githubusercontent.com/PlayFab/thundernetes/main/samples/latencyserver/monitor.yaml
+
 # Verify installations
 kubectl get pods -n cert-manager
 kubectl get pods -n thundernetes-system
 
-# Create namespace
-kubectl apply -f namespace.yaml
+# Deploy game server
+cat gameserver.yaml | envsubst | kubectl apply -f -
+
+# Allocate game server
+allocate_api_public_ip=$(kubectl get service -n thundernetes-system thundernetes-controller-manager -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+build_id="6f9d271e-84d6-4fd5-a386-9b262e0a4cb9"
+session_id="6f9d271e-84d6-4fd5-a386-9b262e0a4cb9"
+
+body=$(jo buildID=$build_id sessionID=$session_id)
+echo $body | jq .
+
+game_server_json=$(curl -H 'Content-Type: application/json' \
+  --data "$body" \
+  http://${allocate_api_public_ip}:5000/api/v1/allocate)
+echo $game_server_json | jq .
 
 # Wipe out the resources
 az group delete --name $resource_group_name -y
