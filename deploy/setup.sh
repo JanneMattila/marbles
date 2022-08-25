@@ -6,6 +6,7 @@ subscription_name="AzureDev"
 azuread_admin_group_contains="janne''s"
 
 aks_name="thundernetes"
+acr_name="crthundernetes00010"
 premium_storage_name="thundernetes00010"
 premium_storage_share_name_nfs="nfs"
 workspace_name="log-thundernetesworkspace"
@@ -30,6 +31,13 @@ az group create -l $location -n $resource_group_name -o table
 
 azuread_admin_group_id=$(az ad group list --display-name $azuread_admin_group_contains --query [].id -o tsv)
 echo $azuread_admin_group_id
+
+acr_json=$(az acr create -l $location -g $resource_group_name -n $acr_name --sku Basic -o json)
+echo $acr_json
+acr_loginServer=$(echo $acr_json | jq -r .loginServer)
+acr_id=$(echo $acr_json | jq -r .id)
+echo $acr_loginServer
+echo $acr_id
 
 workspace_id=$(az monitor log-analytics workspace create -g $resource_group_name -n $workspace_name --query id -o tsv)
 echo $workspace_id
@@ -79,6 +87,7 @@ aks_json=$(az aks create -g $resource_group_name -n $aks_name \
  --disable-local-accounts \
  --aad-admin-group-object-ids $azuread_admin_group_id \
  --workspace-resource-id $workspace_id \
+ --attach-acr $acr_id \
  --load-balancer-sku standard \
  --vnet-subnet-id $subnet_aks_id \
  --assign-identity $cluster_identity_id \
@@ -120,6 +129,19 @@ kubelogin convert-kubeconfig -l azurecli
 
 kubectl get nodes
 kubectl get nodes -o wide
+
+# Set deployment variables
+registry_name=$acr_loginServer
+image_tag=v1
+
+# Build images to ACR
+az acr login -n $acr_name
+docker images
+
+# Build game image
+docker build -t game:$image_tag -f ./src/Game/Dockerfile .
+docker tag game:$image_tag "$acr_loginServer/game:$image_tag"
+docker push "$acr_loginServer/game:$image_tag"
 
 ###################################################################
 #  _____ _                     _                      _            
