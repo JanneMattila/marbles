@@ -121,6 +121,28 @@ kubelogin convert-kubeconfig -l azurecli
 kubectl get nodes
 kubectl get nodes -o wide
 
+###################################################################
+#  _____ _                     _                      _            
+# |_   _| |__  _   _ _ __   __| | ___ _ __ _ __   ___| |_ ___  ___ 
+#   | | | '_ \| | | | '_ \ / _` |/ _ \ '__| '_ \ / _ \ __/ _ \/ __|
+#   | | | | | | |_| | | | | (_| |  __/ |  | | | |  __/ ||  __/\__ \
+#   |_| |_| |_|\__,_|_| |_|\__,_|\___|_|  |_| |_|\___|\__\___||___/
+# Installation                                                                 
+###################################################################
+
+# Install cert manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
+
+# Install Thundernetes
+kubectl apply -f https://raw.githubusercontent.com/PlayFab/thundernetes/main/installfiles/operator.yaml
+
+# Delete Windows node agent daemonset
+kubectl delete -n thundernetes-system daemonset thundernetes-nodeagent-win
+
+# Verify installations
+kubectl get pods -n cert-manager
+kubectl get pods -n thundernetes-system
+
 # Create namespace
 kubectl apply -f namespace.yaml
 
