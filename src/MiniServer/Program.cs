@@ -1,7 +1,19 @@
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using MiniServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddGrpc();
+
+var gamePort = builder.Configuration.GetValue<int>("gameport", 5050);
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(gamePort, configure =>
+    {
+        configure.Protocols = HttpProtocols.Http2;
+        configure.UseHttps();
+    });
+});
 
 var app = builder.Build();
 

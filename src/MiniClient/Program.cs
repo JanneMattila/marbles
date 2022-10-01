@@ -15,7 +15,7 @@ var builder = new ConfigurationBuilder()
 
 var configuration = builder.Build();
 
-var server = configuration.GetValue<string>("server", "https://localhost:5001");
+var server = configuration.GetValue<string>("server", "https://localhost:5050");
 var caCertFilePath = configuration.GetValue<string>("ca_cert_path");
 
 if (!File.Exists(caCertFilePath))
