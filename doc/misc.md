@@ -16,7 +16,7 @@ Using https://favicon.io/favicon-generator/
 
 ```bash
 # Generate Certificate Authority (CA)
-openssl req -x509 -sha256 -days 3650 -newkey -subj "/CN=demos" rsa:2048 -keyout ca.key -out ca.crt
+openssl req -x509 -sha256 -days 3650 -nodes -newkey rsa:2048 -subj "/CN=demos" -keyout ca.key -out ca.crt
 
 # Create server Certificate Signing Request (CSR) configuration file
 cat > server.conf <<EOF
