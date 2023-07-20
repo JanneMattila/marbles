@@ -1,11 +1,10 @@
 ﻿using Microsoft.Extensions.Configuration;
 using System.Net.Sockets;
 using System.Net;
-using System.Text;
 
 var builder = new ConfigurationBuilder()
     .AddUserSecrets<Program>()
-    .AddJsonFile("appsettings.json");
+    .AddJsonFile("appsettings.json", optional: true);
 
 var configuration = builder.Build();
 
