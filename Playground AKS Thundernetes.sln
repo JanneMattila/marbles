@@ -19,9 +19,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{90BB8E44-500
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MarblesSimple", "src\MarblesSimple\MarblesSimple.csproj", "{4E48562E-B049-4754-9A8D-984265DAE041}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniServer", "src\MiniServer\MiniServer.csproj", "{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniServer", "src\MiniServer\MiniServer.csproj", "{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniClient", "src\MiniClient\MiniClient.csproj", "{8470CDCD-069A-48D8-A582-1E040727F68D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniClient", "src\MiniClient\MiniClient.csproj", "{8470CDCD-069A-48D8-A582-1E040727F68D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfServer", "src\PerfServer\PerfServer.csproj", "{928F1693-34CF-417F-B34B-4BC0AF89BF66}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{8470CDCD-069A-48D8-A582-1E040727F68D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8470CDCD-069A-48D8-A582-1E040727F68D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8470CDCD-069A-48D8-A582-1E040727F68D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{928F1693-34CF-417F-B34B-4BC0AF89BF66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{928F1693-34CF-417F-B34B-4BC0AF89BF66}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{928F1693-34CF-417F-B34B-4BC0AF89BF66}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{928F1693-34CF-417F-B34B-4BC0AF89BF66}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -55,6 +61,7 @@ Global
 		{4E48562E-B049-4754-9A8D-984265DAE041} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{8470CDCD-069A-48D8-A582-1E040727F68D} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
+		{928F1693-34CF-417F-B34B-4BC0AF89BF66} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7D0533B4-9F04-4AE8-9733-2A15C6E47D8A}
