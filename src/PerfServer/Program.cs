@@ -1,6 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
 using System.Net.Sockets;
 using System.Net;
+using System.Threading;
+using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 var builder = new ConfigurationBuilder()
     .AddUserSecrets<Program>()
@@ -25,7 +28,42 @@ if (udpPort != 0)
         {
             var receivedBytes = listener.Receive(ref remoteEndpoint);
             var sendBytes = new byte[4] { 0xFF, 0xFF, 0xFF, 0xFF };
-            await listener.SendAsync(sendBytes, sendBytes.Length, remoteEndpoint);
+            await listener.SendAsync(sendBytes, sendBytes.Length, remoteEndpoint).ConfigureAwait(false);
+        }
+    }).Start();
+}
+
+
+if (tcpPort != 0)
+{
+    new Thread(async () =>
+    {
+        var buffer = new byte[1024];
+        var listener = new TcpListener(IPAddress.Any, tcpPort);
+        listener.Start();
+
+        while (true)
+        {
+            var client = await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+            if (client == null) continue;
+
+            new Thread(async () =>
+            {
+                try
+                {
+                    using var stream = client.GetStream();
+                    while (true)
+                    {
+                        var count = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        await stream.WriteAsync(buffer, 0, count).ConfigureAwait(false);
+                        await stream.FlushAsync().ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(ex);
+                }
+            }).Start();
         }
     }).Start();
 }
