@@ -30,7 +30,7 @@ public class ServerPingTester
         return new ServerPingResult
         {
             Region = server,
-            AvarageLatency = (int)(end - start / TimeSpan.TicksPerMillisecond)
+            AvarageLatency = (int)((end - start) / TimeSpan.TicksPerMillisecond)
         };
     }
 }
