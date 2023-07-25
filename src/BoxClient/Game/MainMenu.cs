@@ -1,4 +1,4 @@
-﻿namespace Marbles.Game;
+﻿namespace BoxClient.Game;
 
 public class MainMenu
 {

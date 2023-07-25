@@ -1,10 +1,11 @@
-using Marbles.Game;
+using BoxClient.Game;
 using System.Diagnostics;
 
-namespace Marbles;
+namespace BoxClient;
 
 public partial class MainForm : Form
 {
+    private long _lastDraw = 0;
     private bool _fullscreen = false;
     private GameEngine _gameEngine = new();
 
@@ -18,6 +19,7 @@ public partial class MainForm : Form
         //await _gameEngine.LoadAsync();
 
         //DrawTimer.Enabled = true;
+        _lastDraw = DateTime.Now.Ticks;
         DrawTimer.Start();
     }
 
@@ -84,6 +86,11 @@ public partial class MainForm : Form
 
     private void DrawTimer_Tick(object sender, EventArgs e)
     {
+        var now = DateTime.Now.Ticks;
+        var delta = (now - _lastDraw) / (double)TimeSpan.TicksPerSecond;
+        _lastDraw = DateTime.Now.Ticks;
+
+        _gameEngine.Update(delta);
         Invalidate();
     }
 }

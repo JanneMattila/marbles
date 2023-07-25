@@ -1,6 +1,6 @@
 ﻿using System.Drawing.Drawing2D;
 
-namespace Marbles.Game;
+namespace BoxClient.Game;
 
 public class GameEngine
 {
@@ -21,6 +21,8 @@ public class GameEngine
     private DateTime _lastRateTime = DateTime.Now;
     private int _lastRate = 25;
     private int _rate = 0;
+
+    private PointF _box = new(100, 100);
 
     public GameEngine()
     {
@@ -49,9 +51,15 @@ public class GameEngine
         await Task.CompletedTask;
     }
 
-    public async Task UpdateAsync(double delta)
+    public void Update(double delta)
     {
-        await Task.CompletedTask;
+        if (!IsRunning) return;
+
+        var speed = (float)(200.0d * delta);
+        if (KeyUp) _box.Y -= speed;
+        if (KeyDown) _box.Y += speed;
+        if (KeyLeft) _box.X -= speed;
+        if (KeyRight) _box.X += speed;
     }
 
     public void Draw(Graphics graphics, Rectangle clipRectangle)
@@ -82,6 +90,8 @@ public class GameEngine
             }
 
             graphics.DrawString($"Running", _font, Brushes.SlateGray, 10, 5);
+
+            graphics.FillRectangle(Brushes.White, _box.X, _box.Y, 20, 20);
         }
 
         if (ShowDebugInfo)

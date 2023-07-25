@@ -10,22 +10,20 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{3248030B-BF4
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Marbles", "src\Marbles\Marbles.csproj", "{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{90BB8E44-5005-4526-8377-3D50A3ACE267}"
 	ProjectSection(SolutionItems) = preProject
 		doc\misc.md = doc\misc.md
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MarblesSimple", "src\MarblesSimple\MarblesSimple.csproj", "{4E48562E-B049-4754-9A8D-984265DAE041}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniServer", "src\MiniServer\MiniServer.csproj", "{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MiniClient", "src\MiniClient\MiniClient.csproj", "{8470CDCD-069A-48D8-A582-1E040727F68D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfServer", "src\PerfServer\PerfServer.csproj", "{928F1693-34CF-417F-B34B-4BC0AF89BF66}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PerfServer", "src\PerfServer\PerfServer.csproj", "{928F1693-34CF-417F-B34B-4BC0AF89BF66}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerfClient", "src\PerfClient\PerfClient.csproj", "{0921260E-D5CD-47CF-A82A-3962428EA0FA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PerfClient", "src\PerfClient\PerfClient.csproj", "{0921260E-D5CD-47CF-A82A-3962428EA0FA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BoxClient", "src\BoxClient\BoxClient.csproj", "{3F879F26-B2F0-4ECC-B733-FB23983732D6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,14 +31,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4E48562E-B049-4754-9A8D-984265DAE041}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4E48562E-B049-4754-9A8D-984265DAE041}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4E48562E-B049-4754-9A8D-984265DAE041}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4E48562E-B049-4754-9A8D-984265DAE041}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -57,18 +47,21 @@ Global
 		{0921260E-D5CD-47CF-A82A-3962428EA0FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0921260E-D5CD-47CF-A82A-3962428EA0FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0921260E-D5CD-47CF-A82A-3962428EA0FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3F879F26-B2F0-4ECC-B733-FB23983732D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3F879F26-B2F0-4ECC-B733-FB23983732D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3F879F26-B2F0-4ECC-B733-FB23983732D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3F879F26-B2F0-4ECC-B733-FB23983732D6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{F3AE9937-37FB-444C-B77F-D0ABA690F7B9} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{90BB8E44-5005-4526-8377-3D50A3ACE267} = {3248030B-BF42-4C94-9005-5DADF58D8044}
-		{4E48562E-B049-4754-9A8D-984265DAE041} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{5BDA30D6-6E77-4F8F-BA8D-954021EE74C6} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{8470CDCD-069A-48D8-A582-1E040727F68D} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{928F1693-34CF-417F-B34B-4BC0AF89BF66} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{0921260E-D5CD-47CF-A82A-3962428EA0FA} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
+		{3F879F26-B2F0-4ECC-B733-FB23983732D6} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7D0533B4-9F04-4AE8-9733-2A15C6E47D8A}

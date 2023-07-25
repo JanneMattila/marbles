@@ -1,4 +1,4 @@
-namespace Marbles
+namespace BoxClient
 {
     internal static class Program
     {
