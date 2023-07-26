@@ -55,7 +55,7 @@ public class GameEngine
     {
         if (!IsRunning) return;
 
-        var speed = (float)(200.0d * delta);
+        var speed = (float)(1000.0d * delta);
         if (KeyUp) _box.Y -= speed;
         if (KeyDown) _box.Y += speed;
         if (KeyLeft) _box.X -= speed;
@@ -91,7 +91,7 @@ public class GameEngine
 
             graphics.DrawString($"Running", _font, Brushes.SlateGray, 10, 5);
 
-            graphics.FillRectangle(Brushes.White, _box.X, _box.Y, 20, 20);
+            graphics.FillRectangle(Brushes.White, _box.X, _box.Y, 50, 50);
         }
 
         if (ShowDebugInfo)

@@ -28,20 +28,13 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            DrawTimer = new System.Windows.Forms.Timer(components);
             SuspendLayout();
-            // 
-            // DrawTimer
-            // 
-            DrawTimer.Interval = 10;
-            DrawTimer.Tick += DrawTimer_Tick;
             // 
             // MainForm
             // 
-            AutoScaleDimensions = new SizeF(13F, 32F);
-            AutoScaleMode = AutoScaleMode.Font;
+            AutoScaleDimensions = new SizeF(192F, 192F);
+            AutoScaleMode = AutoScaleMode.Dpi;
             AutoValidate = AutoValidate.Disable;
             BackColor = Color.Black;
             CausesValidation = false;
@@ -51,9 +44,11 @@
             Margin = new Padding(4, 2, 4, 2);
             MinimumSize = new Size(1024, 768);
             Name = "MainForm";
+            StartPosition = FormStartPosition.CenterScreen;
             Text = "Box";
             Activated += MainForm_Activated;
             Deactivate += MainForm_Deactivate;
+            FormClosing += MainForm_FormClosing;
             Load += MainForm_Load;
             Paint += MainForm_Paint;
             KeyDown += MainForm_KeyDown;
@@ -62,7 +57,5 @@
         }
 
         #endregion
-
-        private System.Windows.Forms.Timer DrawTimer;
     }
 }

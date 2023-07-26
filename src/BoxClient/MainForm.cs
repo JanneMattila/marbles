@@ -5,9 +5,9 @@ namespace BoxClient;
 
 public partial class MainForm : Form
 {
-    private long _lastDraw = 0;
     private bool _fullscreen = false;
     private GameEngine _gameEngine = new();
+    private bool _exit = false;
 
     public MainForm()
     {
@@ -16,11 +16,21 @@ public partial class MainForm : Form
 
     private void MainForm_Load(object sender, EventArgs e)
     {
-        //await _gameEngine.LoadAsync();
+        new Thread(() =>
+        {
+            var lastUpdate = DateTime.Now.Ticks;
+            while (!_exit)
+            {
+                BeginInvoke(() => Invalidate());
 
-        //DrawTimer.Enabled = true;
-        _lastDraw = DateTime.Now.Ticks;
-        DrawTimer.Start();
+                var now = DateTime.Now.Ticks;
+                var delta = (now - lastUpdate) / (double)TimeSpan.TicksPerSecond;
+                lastUpdate = now;
+
+                _gameEngine.Update(delta);
+                Thread.Sleep(1);
+            }
+        }).Start();
     }
 
     private void MainForm_KeyUp(object sender, KeyEventArgs e)
@@ -31,6 +41,7 @@ public partial class MainForm : Form
         {
             _fullscreen = !_fullscreen;
             GoToFullscreen(_fullscreen);
+            e.Handled = true;
             return;
         }
 
@@ -47,11 +58,35 @@ public partial class MainForm : Form
     private void MainForm_KeyDown(object sender, KeyEventArgs e)
     {
         const bool on = true;
-        if (e.KeyCode == Keys.Up || e.KeyCode == Keys.W) _gameEngine.KeyUp = on;
-        else if (e.KeyCode == Keys.Down || e.KeyCode == Keys.S) _gameEngine.KeyDown = on;
-        else if (e.KeyCode == Keys.Left || e.KeyCode == Keys.A) _gameEngine.KeyLeft = on;
-        else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.D) _gameEngine.KeyRight = on;
-        e.Handled = true;
+        if (e.KeyCode == Keys.Up || e.KeyCode == Keys.W)
+        {
+            _gameEngine.KeyUp = on;
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+        }
+        else if (e.KeyCode == Keys.Down || e.KeyCode == Keys.S)
+        {
+            _gameEngine.KeyDown = on;
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+        }
+        else if (e.KeyCode == Keys.Left || e.KeyCode == Keys.A)
+        {
+            _gameEngine.KeyLeft = on;
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+        }
+        else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.D)
+        {
+            _gameEngine.KeyRight = on;
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+        }
+        else if (e.Alt && e.KeyCode == Keys.Enter)
+        {
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+        }
     }
 
     private void MainForm_Activated(object sender, EventArgs e)
@@ -71,7 +106,6 @@ public partial class MainForm : Form
 
     private void GoToFullscreen(bool fullscreen)
     {
-        TopMost = fullscreen;
         if (fullscreen)
         {
             FormBorderStyle = FormBorderStyle.None;
@@ -84,13 +118,8 @@ public partial class MainForm : Form
         }
     }
 
-    private void DrawTimer_Tick(object sender, EventArgs e)
+    private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
     {
-        var now = DateTime.Now.Ticks;
-        var delta = (now - _lastDraw) / (double)TimeSpan.TicksPerSecond;
-        _lastDraw = DateTime.Now.Ticks;
-
-        _gameEngine.Update(delta);
-        Invalidate();
+        _exit = true;
     }
 }
