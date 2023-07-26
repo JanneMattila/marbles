@@ -1,5 +1,6 @@
 using BoxClient.Game;
 using System.Diagnostics;
+using System.Net.Sockets;
 
 namespace BoxClient;
 
@@ -8,28 +9,36 @@ public partial class MainForm : Form
     private bool _fullscreen = false;
     private GameEngine _gameEngine = new();
     private bool _exit = false;
+    private UdpClient _client;
 
-    public MainForm()
+    public MainForm(string server, int port)
     {
         InitializeComponent();
+
+        _client = new UdpClient(server, port);
     }
 
     private void MainForm_Load(object sender, EventArgs e)
     {
-        new Thread(() =>
+        new Thread(async () =>
         {
+            var data = new byte[4] { 0xFF, 0xFF, 0xFF, 0xFF };
             var lastUpdate = DateTime.Now.Ticks;
             while (!_exit)
             {
-                BeginInvoke(() => Invalidate());
+                BeginInvoke(() => Refresh());
 
                 var now = DateTime.Now.Ticks;
                 var delta = (now - lastUpdate) / (double)TimeSpan.TicksPerSecond;
                 lastUpdate = now;
 
                 _gameEngine.Update(delta);
-                Thread.Sleep(1);
+                await _client.SendAsync(data, data.Length);
+
+                Thread.Sleep(10);
             }
+
+            _client.Close();
         }).Start();
     }
 
