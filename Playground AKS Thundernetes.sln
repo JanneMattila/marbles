@@ -27,6 +27,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BoxClient", "src\BoxClient\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BoxServer", "src\BoxServer\BoxServer.csproj", "{1149AAC0-B89B-4D4A-84DA-61E6881BEA2E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{466356AA-B9FF-4CDB-81FB-DEFB2AEB7B9A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BoxTests", "test\BoxTests\BoxTests.csproj", "{B5ADC4D4-3EB6-4742-A7E3-D22937FBDCEE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +61,10 @@ Global
 		{1149AAC0-B89B-4D4A-84DA-61E6881BEA2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1149AAC0-B89B-4D4A-84DA-61E6881BEA2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1149AAC0-B89B-4D4A-84DA-61E6881BEA2E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5ADC4D4-3EB6-4742-A7E3-D22937FBDCEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5ADC4D4-3EB6-4742-A7E3-D22937FBDCEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5ADC4D4-3EB6-4742-A7E3-D22937FBDCEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5ADC4D4-3EB6-4742-A7E3-D22937FBDCEE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -69,6 +77,7 @@ Global
 		{0921260E-D5CD-47CF-A82A-3962428EA0FA} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{3F879F26-B2F0-4ECC-B733-FB23983732D6} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
 		{1149AAC0-B89B-4D4A-84DA-61E6881BEA2E} = {426146F4-0AFA-440B-8C07-5A0F2841792B}
+		{B5ADC4D4-3EB6-4742-A7E3-D22937FBDCEE} = {466356AA-B9FF-4CDB-81FB-DEFB2AEB7B9A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7D0533B4-9F04-4AE8-9733-2A15C6E47D8A}

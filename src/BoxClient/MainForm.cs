@@ -15,14 +15,19 @@ public partial class MainForm : Form
     {
         InitializeComponent();
 
-        _client = new UdpClient(server, port);
+        _client = new UdpClient(server, port)
+        {
+            Ttl = 1,
+            DontFragment = true
+        };
+        _client.AllowNatTraversal(true);
     }
 
     private void MainForm_Load(object sender, EventArgs e)
     {
         new Thread(async () =>
         {
-            var data = new byte[4] { 0xFF, 0xFF, 0xFF, 0xFF };
+            var data = new byte[8];
             var lastUpdate = DateTime.Now.Ticks;
             while (!_exit)
             {
@@ -33,7 +38,25 @@ public partial class MainForm : Form
                 lastUpdate = now;
 
                 _gameEngine.Update(delta);
+
+                var x = BitConverter.GetBytes((uint)(_gameEngine.Box.X * 1_000));
+                var y = BitConverter.GetBytes((uint)(_gameEngine.Box.Y * 1_000));
+
+                Buffer.BlockCopy(x, 0, data, 0, 4);
+                Buffer.BlockCopy(y, 0, data, 4, 4);
+
                 await _client.SendAsync(data, data.Length);
+
+                if (_client.Available > 1)
+                {
+                    var result = await _client.ReceiveAsync();
+                    Debug.WriteLine($"Received: {result.Buffer.Length}");
+                    result.Buffer.CopyTo(data, 0);
+                    var otherX = BitConverter.ToUInt32(data, 0) / 1_000f;
+                    var otherY = BitConverter.ToUInt32(data, 4) / 1_000f;
+
+                    _gameEngine.AddOtherBox(new PointF(otherX, otherY));
+                }
 
                 Thread.Sleep(10);
             }

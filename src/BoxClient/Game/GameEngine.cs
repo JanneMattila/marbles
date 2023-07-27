@@ -13,6 +13,8 @@ public class GameEngine
     public bool KeyLeft { get; set; }
     public bool KeyRight { get; set; }
 
+    public PointF Box => _box;
+
     private Font _font = new("Segoe UI", 16, GraphicsUnit.Point);
     private Pen _gridPen = new(new HatchBrush(HatchStyle.DarkUpwardDiagonal, Color.DarkSlateGray), 1);
     private MainMenu _mainMenu;
@@ -23,6 +25,7 @@ public class GameEngine
     private int _rate = 0;
 
     private PointF _box = new(100, 100);
+    private List<PointF> _otherBoxes = new();
 
     public GameEngine()
     {
@@ -43,6 +46,12 @@ public class GameEngine
             return false;
         }
         return true;
+    }
+
+    public void AddOtherBox(PointF box)
+    {
+        _otherBoxes.Clear();
+        _otherBoxes.Add(box);
     }
 
     public async Task LoadAsync()
@@ -83,13 +92,19 @@ public class GameEngine
         {
             graphics.Clear(Color.Black);
 
-            if (!IsRunning)
+            if (IsRunning)
+            {
+                graphics.DrawString($"Running", _font, Brushes.SlateGray, 10, 5);
+            }
+            else
             {
                 graphics.DrawString($"Game paused", _font, Brushes.SlateGray, 10, 5);
-                return;
             }
 
-            graphics.DrawString($"Running", _font, Brushes.SlateGray, 10, 5);
+            foreach (var otherBox in _otherBoxes.ToList())
+            {
+                graphics.FillRectangle(Brushes.Gray, otherBox.X, otherBox.Y, 50, 50);
+            }
 
             graphics.FillRectangle(Brushes.White, _box.X, _box.Y, 50, 50);
         }
