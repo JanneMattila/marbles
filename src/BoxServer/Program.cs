@@ -4,6 +4,7 @@ using System.Net;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Drawing;
 using System.Diagnostics;
+using System;
 
 var builder = new ConfigurationBuilder()
     .AddUserSecrets<Program>()
@@ -20,7 +21,6 @@ var listener = new UdpClient(udpPort);
 var remoteEndpoint = new IPEndPoint(IPAddress.Any, udpPort);
 
 var stopwatch = new Stopwatch();
-var data = new byte[8];
 stopwatch.Start();
 
 while (true)
@@ -55,25 +55,21 @@ while (true)
 
     if (receivedBytes.Length != 8)
     {
-        Console.WriteLine($"Received {receivedBytes.Length} bytes, expected 8.");
+        throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected 8.");
     }
 
-    for (var index = 0; index < receivedBytes.Length; index += 8)
-    {
-        Buffer.BlockCopy(receivedBytes, index, data, 0, 8);
-        var x = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index)) / 1_000f;
-        var y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index + 4)) / 1_000f;
+    var x = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0)) / 1_000f;
+    var y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 4)) / 1_000f;
 
-        // TODO: Add received sequence number to received items list.
+    // TODO: Add received sequence number to received items list.
 
-        box.X = x;
-        box.Y = y;
-    }
+    box.X = x;
+    box.Y = y;
 
     foreach (var b in boxes)
     {
         if (b.Value.ID == box.ID) continue;
-        listener.Send(data, data.Length, b.Key);
+        listener.Send(receivedBytes, receivedBytes.Length, b.Key);
     }
 
     box.Messages++;

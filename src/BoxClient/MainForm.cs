@@ -4,6 +4,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 
 namespace BoxClient;
 
@@ -54,17 +55,18 @@ public partial class MainForm : Form
                 {
                     try
                     {
-                        var result = _client.Receive(ref _serverEndpoint);
+                        var receivedBytes = _client.Receive(ref _serverEndpoint);
+
+                        if (receivedBytes.Length != 8)
+                        {
+                            throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected 8.");
+                        }
 
                         _gameEngine.ClearOthers();
-                        for (var index = 0; index < result.Length; index += 8)
-                        {
-                            Buffer.BlockCopy(result, index, data, 0, 4);
-                            var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index)) / 1_000f;
-                            var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index + 4)) / 1_000f;
+                        var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0)) / 1_000f;
+                        var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 4)) / 1_000f;
 
-                            _gameEngine.AddOtherBox(new PointF(otherX, otherY));
-                        }
+                        _gameEngine.AddOtherBox(new PointF(otherX, otherY));
                     }
                     catch (SocketException ex)
                     {
