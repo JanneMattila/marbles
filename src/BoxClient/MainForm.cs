@@ -32,7 +32,9 @@ public partial class MainForm : Form
     {
         new Thread(() =>
         {
-            var data = new byte[8];
+            var data = new byte[10];
+            var expectedMessageSize = 10;
+
             var lastUpdate = DateTime.Now.Ticks;
             while (!_exit)
             {
@@ -46,25 +48,25 @@ public partial class MainForm : Form
                 var x = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)(_gameEngine.Box.X * 1_000)));
                 var y = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)(_gameEngine.Box.Y * 1_000)));
 
-                Buffer.BlockCopy(x, 0, data, 0, 4);
-                Buffer.BlockCopy(y, 0, data, 4, 4);
+                Buffer.BlockCopy(x, 0, data, 2, sizeof(int));
+                Buffer.BlockCopy(y, 0, data, 2 + sizeof(int), sizeof(int));
 
                 _client.Send(data, data.Length);
 
-                if (_client.Available > 1)
+                while (_client.Available > 1)
                 {
                     try
                     {
                         var receivedBytes = _client.Receive(ref _serverEndpoint);
 
-                        if (receivedBytes.Length != 8)
+                        if (receivedBytes.Length != expectedMessageSize)
                         {
-                            throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected 8.");
+                            throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected {expectedMessageSize}.");
                         }
 
                         _gameEngine.ClearOthers();
-                        var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0)) / 1_000f;
-                        var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 4)) / 1_000f;
+                        var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2)) / 1_000f;
+                        var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2 + sizeof(int))) / 1_000f;
 
                         _gameEngine.AddOtherBox(new PointF(otherX, otherY));
                     }

@@ -19,6 +19,7 @@ Console.WriteLine($"UDP Port: {udpPort}");
 var boxes = new Dictionary<IPEndPoint, Box>();
 var listener = new UdpClient(udpPort);
 var remoteEndpoint = new IPEndPoint(IPAddress.Any, udpPort);
+var expectedMessageSize = 10;
 
 var stopwatch = new Stopwatch();
 stopwatch.Start();
@@ -53,13 +54,14 @@ while (true)
 
     box.LastUpdated = now;
 
-    if (receivedBytes.Length != 8)
+    if (receivedBytes.Length != expectedMessageSize)
     {
-        throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected 8.");
+        throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected {expectedMessageSize}.");
     }
 
-    var x = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0)) / 1_000f;
-    var y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 4)) / 1_000f;
+    var crc32 = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0));
+    var x = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2)) / 1_000f;
+    var y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2 + sizeof(int))) / 1_000f;
 
     // TODO: Add received sequence number to received items list.
 
