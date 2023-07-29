@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.Intrinsics.Arm;
 
 namespace BoxClient;
 
@@ -32,9 +33,9 @@ public partial class MainForm : Form
     {
         new Thread(() =>
         {
-            var data = new byte[10];
-            var expectedMessageSize = 10;
-
+            const int expectedMessageSize = 12;
+            var data = new byte[expectedMessageSize];
+            System.IO.Hashing.Crc32 crc32 = new();
             var lastUpdate = DateTime.Now.Ticks;
             while (!_exit)
             {
@@ -48,8 +49,13 @@ public partial class MainForm : Form
                 var x = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)(_gameEngine.Box.X * 1_000)));
                 var y = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((int)(_gameEngine.Box.Y * 1_000)));
 
-                Buffer.BlockCopy(x, 0, data, 2, sizeof(int));
-                Buffer.BlockCopy(y, 0, data, 2 + sizeof(int), sizeof(int));
+                Buffer.BlockCopy(x, 0, data, crc32.HashLengthInBytes, sizeof(int));
+                Buffer.BlockCopy(y, 0, data, crc32.HashLengthInBytes + sizeof(int), sizeof(int));
+
+                crc32.Reset();
+                crc32.Append(data);
+                var crc32value = crc32.GetCurrentHash();
+                Buffer.BlockCopy(crc32value, 0, data, 0, crc32.HashLengthInBytes);
 
                 _client.Send(data, data.Length);
 
@@ -65,8 +71,8 @@ public partial class MainForm : Form
                         }
 
                         _gameEngine.ClearOthers();
-                        var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2)) / 1_000f;
-                        var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2 + sizeof(int))) / 1_000f;
+                        var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, crc32.HashLengthInBytes)) / 1_000f;
+                        var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, crc32.HashLengthInBytes + sizeof(int))) / 1_000f;
 
                         _gameEngine.AddOtherBox(new PointF(otherX, otherY));
                     }

@@ -19,7 +19,9 @@ Console.WriteLine($"UDP Port: {udpPort}");
 var boxes = new Dictionary<IPEndPoint, Box>();
 var listener = new UdpClient(udpPort);
 var remoteEndpoint = new IPEndPoint(IPAddress.Any, udpPort);
-var expectedMessageSize = 10;
+const int expectedMessageSize = 12;
+
+System.IO.Hashing.Crc32 crc32 = new();
 
 var stopwatch = new Stopwatch();
 stopwatch.Start();
@@ -38,8 +40,12 @@ while (true)
         continue;
     }
 
-    var now = DateTime.UtcNow;
+    if (receivedBytes.Length != expectedMessageSize)
+    {
+        throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected {expectedMessageSize}.");
+    }
 
+    var now = DateTime.UtcNow;
     Box box;
     if (!boxes.TryGetValue(remoteEndpoint, out box))
     {
@@ -52,21 +58,12 @@ while (true)
         boxes.Add(remoteEndpoint, box);
     }
 
+    var crc32value = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0));
+    box.X = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, crc32.HashLengthInBytes)) / 1_000f;
+    box.Y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, crc32.HashLengthInBytes + sizeof(int))) / 1_000f;
     box.LastUpdated = now;
 
-    if (receivedBytes.Length != expectedMessageSize)
-    {
-        throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected {expectedMessageSize}.");
-    }
-
-    var crc32 = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0));
-    var x = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2)) / 1_000f;
-    var y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 2 + sizeof(int))) / 1_000f;
-
     // TODO: Add received sequence number to received items list.
-
-    box.X = x;
-    box.Y = y;
 
     foreach (var b in boxes)
     {
