@@ -48,9 +48,13 @@ public class GameEngine
         return true;
     }
 
-    public void AddOtherBox(PointF box)
+    public void ClearOthers()
     {
         _otherBoxes.Clear();
+    }
+
+    public void AddOtherBox(PointF box)
+    {
         _otherBoxes.Add(box);
     }
 

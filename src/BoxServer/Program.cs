@@ -25,25 +25,42 @@ stopwatch.Start();
 
 while (true)
 {
-    var result = await listener.ReceiveAsync().ConfigureAwait(false);
+    byte[] receivedBytes;
+
+    try
+    {
+        receivedBytes = listener.Receive(ref remoteEndpoint);
+    }
+    catch (SocketException ex)
+    {
+        Debug.WriteLine("SocketException caught: {0}", ex.Message);
+        continue;
+    }
+
     var now = DateTime.UtcNow;
 
     Box box;
-    if (!boxes.TryGetValue(result.RemoteEndPoint, out box))
+    if (!boxes.TryGetValue(remoteEndpoint, out box))
     {
         box = new Box
         {
-            Address = result.RemoteEndPoint,
+            ID = (byte)(boxes.Count + 1),
+            Address = remoteEndpoint,
             Created = now
         };
-        boxes.Add(result.RemoteEndPoint, box);
+        boxes.Add(remoteEndpoint, box);
     }
 
     box.LastUpdated = now;
 
-    for (var index = 0; index < result.Buffer.Length; index += 8)
+    if (receivedBytes.Length != 8)
     {
-        Buffer.BlockCopy(result.Buffer, index, data, 0, 8);
+        Console.WriteLine($"Received {receivedBytes.Length} bytes, expected 8.");
+    }
+
+    for (var index = 0; index < receivedBytes.Length; index += 8)
+    {
+        Buffer.BlockCopy(receivedBytes, index, data, 0, 8);
         var x = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index)) / 1_000f;
         var y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index + 4)) / 1_000f;
 
@@ -55,22 +72,21 @@ while (true)
 
     foreach (var b in boxes)
     {
-        //if (remoteEndpoint.Equals(b.Key)) continue;
-
-        await listener.SendAsync(data, data.Length, b.Key).ConfigureAwait(false);
+        if (b.Value.ID == box.ID) continue;
+        listener.Send(data, data.Length, b.Key);
     }
 
     box.Messages++;
 
     if (stopwatch.ElapsedMilliseconds >= 1_000)
     {
-        var seconds = stopwatch.Elapsed.TotalSeconds;
         var lastUpdateThreshold = now.AddSeconds(-5);
 
+        Console.WriteLine($"{boxes.Count} clients:");
         var toRemove = new List<IPEndPoint>();
         foreach (var b in boxes)
         {
-            Console.WriteLine($"{b.Key}: {b.Value.Messages} msgs, {b.Value.Messages / seconds:0.00} msgs/s  {b.Value.LastUpdated}, X: {b.Value.X} Y: {b.Value.Y}");
+            Console.WriteLine($"{b.Key}: {b.Value.Messages} packets, X: {b.Value.X}, Y: {b.Value.Y}");
             if (b.Value.LastUpdated < lastUpdateThreshold)
             {
                 toRemove.Add(b.Key);
@@ -89,6 +105,7 @@ while (true)
 
 class Box
 {
+    public byte ID { get; set; }
     public IPEndPoint Address { get; set; }
     public DateTime Created { get; set; }
     public DateTime LastUpdated { get; set; }

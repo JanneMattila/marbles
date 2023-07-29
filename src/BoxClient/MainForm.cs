@@ -52,26 +52,23 @@ public partial class MainForm : Form
 
                 if (_client.Available > 1)
                 {
-                    if (_client.Available > 1)
+                    try
                     {
-                        try
-                        {
-                            var result = _client.Receive(ref _serverEndpoint);
-                            Debug.WriteLine($"Received: {result.Length}");
+                        var result = _client.Receive(ref _serverEndpoint);
 
-                            for (var index = 0; index < result.Length; index += 8)
-                            {
-                                Buffer.BlockCopy(result, index, data, 0, 4);
-                                var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index)) / 1_000f;
-                                var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index + 4)) / 1_000f;
-
-                                _gameEngine.AddOtherBox(new PointF(otherX, otherY));
-                            }
-                        }
-                        catch (SocketException e)
+                        _gameEngine.ClearOthers();
+                        for (var index = 0; index < result.Length; index += 8)
                         {
-                            Debug.WriteLine("SocketException caught: {0}", e.Message);
+                            Buffer.BlockCopy(result, index, data, 0, 4);
+                            var otherX = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index)) / 1_000f;
+                            var otherY = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index + 4)) / 1_000f;
+
+                            _gameEngine.AddOtherBox(new PointF(otherX, otherY));
                         }
+                    }
+                    catch (SocketException ex)
+                    {
+                        Debug.WriteLine("SocketException caught: {0}", ex.Message);
                     }
                 }
 
