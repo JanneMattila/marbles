@@ -75,7 +75,7 @@ public partial class MainForm : Form
                     }
                 }
 
-                Thread.Sleep(10);
+                Thread.Sleep(20);
             }
 
             _client.Close();

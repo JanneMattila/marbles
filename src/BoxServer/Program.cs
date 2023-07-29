@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Net;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Drawing;
+using System.Diagnostics;
 
 var builder = new ConfigurationBuilder()
     .AddUserSecrets<Program>()
@@ -18,14 +19,14 @@ var boxes = new Dictionary<IPEndPoint, Box>();
 var listener = new UdpClient(udpPort);
 var remoteEndpoint = new IPEndPoint(IPAddress.Any, udpPort);
 
-var messages = 0;
+var stopwatch = new Stopwatch();
 var data = new byte[8];
+stopwatch.Start();
 
 while (true)
 {
     var result = await listener.ReceiveAsync().ConfigureAwait(false);
-    var now = DateTime.Now;
-    Console.WriteLine($"{DateTime.Now.ToString("ss.fffff")}: {result.RemoteEndPoint}");
+    var now = DateTime.UtcNow;
 
     Box box;
     if (!boxes.TryGetValue(result.RemoteEndPoint, out box))
@@ -59,23 +60,30 @@ while (true)
         await listener.SendAsync(data, data.Length, b.Key).ConfigureAwait(false);
     }
 
-    messages++;
+    box.Messages++;
 
-    if (messages % 1_000 == 0)
+    if (stopwatch.ElapsedMilliseconds >= 1_000)
     {
+        var seconds = stopwatch.Elapsed.TotalSeconds;
+        var lastUpdateThreshold = now.AddSeconds(-5);
+
         var toRemove = new List<IPEndPoint>();
         foreach (var b in boxes)
         {
-            if (now - b.Value.LastUpdated > TimeSpan.FromSeconds(5))
+            Console.WriteLine($"{b.Key}: {b.Value.Messages} msgs, {b.Value.Messages / seconds:0.00} msgs/s  {b.Value.LastUpdated}, X: {b.Value.X} Y: {b.Value.Y}");
+            if (b.Value.LastUpdated < lastUpdateThreshold)
             {
                 toRemove.Add(b.Key);
             }
+
+            b.Value.Messages = 0;
         }
 
         foreach (var r in toRemove)
         {
             boxes.Remove(r);
         }
+        stopwatch.Restart();
     }
 }
 
@@ -84,6 +92,7 @@ class Box
     public IPEndPoint Address { get; set; }
     public DateTime Created { get; set; }
     public DateTime LastUpdated { get; set; }
+    public int Messages { get; set; }
 
     public float X { get; set; }
     public float Y { get; set; }
