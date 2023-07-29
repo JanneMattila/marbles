@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
 using System.Net.Sockets;
 using System.Net;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Drawing;
 
 var builder = new ConfigurationBuilder()
     .AddUserSecrets<Program>()
@@ -16,40 +18,64 @@ var boxes = new Dictionary<IPEndPoint, Box>();
 var listener = new UdpClient(udpPort);
 var remoteEndpoint = new IPEndPoint(IPAddress.Any, udpPort);
 
+var messages = 0;
+var data = new byte[8];
+
 while (true)
 {
-    var receivedBytes = listener.Receive(ref remoteEndpoint);
-    var remote = remoteEndpoint.ToString();
-    var remoteipv4address = remoteEndpoint.Address.Address;
-    var remotePort = remoteEndpoint.Port;
-
-    Console.WriteLine($"{DateTime.Now.ToString("ss.fffff")}: {remote}");
+    var result = await listener.ReceiveAsync().ConfigureAwait(false);
+    var now = DateTime.Now;
+    Console.WriteLine($"{DateTime.Now.ToString("ss.fffff")}: {result.RemoteEndPoint}");
 
     Box box;
-    if (boxes.TryGetValue(remoteEndpoint, out box))
-    {
-        box.LastUpdated = DateTime.Now;
-        box.X = BitConverter.ToUInt32(receivedBytes, 0);
-        box.Y = BitConverter.ToUInt32(receivedBytes, 4);
-    }
-    else
+    if (!boxes.TryGetValue(result.RemoteEndPoint, out box))
     {
         box = new Box
         {
-            Address = remoteEndpoint,
-            Created = DateTime.Now,
-            LastUpdated = DateTime.Now,
-            X = BitConverter.ToUInt32(receivedBytes, 0),
-            Y = BitConverter.ToUInt32(receivedBytes, 4)
+            Address = result.RemoteEndPoint,
+            Created = now
         };
-        boxes.Add(remoteEndpoint, box);
+        boxes.Add(result.RemoteEndPoint, box);
+    }
+
+    box.LastUpdated = now;
+
+    for (var index = 0; index < result.Buffer.Length; index += 8)
+    {
+        Buffer.BlockCopy(result.Buffer, index, data, 0, 8);
+        var x = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index)) / 1_000f;
+        var y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(data, index + 4)) / 1_000f;
+
+        // TODO: Add received sequence number to received items list.
+
+        box.X = x;
+        box.Y = y;
     }
 
     foreach (var b in boxes)
     {
-        if (b.Key == remoteEndpoint) continue;
+        //if (remoteEndpoint.Equals(b.Key)) continue;
 
-        await listener.SendAsync(receivedBytes, receivedBytes.Length, b.Value.Address).ConfigureAwait(false);
+        await listener.SendAsync(data, data.Length, b.Key).ConfigureAwait(false);
+    }
+
+    messages++;
+
+    if (messages % 1_000 == 0)
+    {
+        var toRemove = new List<IPEndPoint>();
+        foreach (var b in boxes)
+        {
+            if (now - b.Value.LastUpdated > TimeSpan.FromSeconds(5))
+            {
+                toRemove.Add(b.Key);
+            }
+        }
+
+        foreach (var r in toRemove)
+        {
+            boxes.Remove(r);
+        }
     }
 }
 
@@ -59,6 +85,6 @@ class Box
     public DateTime Created { get; set; }
     public DateTime LastUpdated { get; set; }
 
-    public uint X { get; set; }
-    public uint Y { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
 }
