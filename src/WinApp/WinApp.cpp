@@ -21,6 +21,7 @@
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
+HWND g_hwnd;                                      // Handle to the window
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 bool g_bRunning = true;
@@ -28,6 +29,14 @@ bool g_bRunning = true;
 UINT32 g_frameCount = 0;
 double g_lastTime = 0.0;
 double g_fps = 0.0;
+
+// Key state variables
+bool g_keyUpPressed = false;
+bool g_keyDownPressed = false;
+bool g_keyLeftPressed = false;
+bool g_keyRightPressed = false;
+// Player position and size
+D2D1_RECT_F g_playerRect = D2D1::RectF(100.f, 100.f, 30.f, 30.f);
 
 // DirectX Global declarations
 // Create a Direct2D render target
@@ -48,6 +57,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void                CleanupDevice();
 void                Render();
+void                UpdatePlayerPosition();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -88,6 +98,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Update game state
+        UpdatePlayerPosition();
 
         // Render a frame
         Render();
@@ -135,15 +146,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
-HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
+HRESULT InitDeviceResources(HWND hWnd)
 {
-    hInst = hInstance; // Store instance handle in our global variable
-
-    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
-
-    if (!hWnd) return E_FAIL;
-
     HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_pD2DFactory);
     if (FAILED(hr)) return hr;
     RECT rc;
@@ -185,11 +189,35 @@ HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
     g_pTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
     g_pTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
 
+	return hr;
+}
+
+HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
+{
+    hInst = hInstance; // Store instance handle in our global variable
+
+    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+
+    if (!hWnd) return E_FAIL;
+
+    HRESULT hr = InitDeviceResources(hWnd);
+
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
+    g_hwnd = hWnd;
     return hr;
 }
+
+void UpdatePlayerPosition()
+{
+    if (g_keyUpPressed) { g_playerRect.top -= 10; g_playerRect.bottom -= 10; }
+    if (g_keyDownPressed) { g_playerRect.top += 10; g_playerRect.bottom += 10; }
+    if (g_keyLeftPressed) { g_playerRect.left -= 10; g_playerRect.right -= 10; }
+    if (g_keyRightPressed) { g_playerRect.left += 10; g_playerRect.right += 10; }
+}
+
 
 void Render()
 {
@@ -198,9 +226,8 @@ void Render()
     g_pRenderTarget->BeginDraw();
     g_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Black));
 
-    D2D1_RECT_F rectangle = D2D1::RectF(100.f, 100.f, 300.f, 300.f);
-
-    g_pRenderTarget->FillRectangle(&rectangle, g_pBlueBrush);
+    // Use g_playerRect for the player's position and size
+    g_pRenderTarget->FillRectangle(&g_playerRect, g_pBlueBrush);
 
     wchar_t fpsText[256];
     swprintf_s(fpsText, L"FPS: %.2lf", g_fps);
@@ -214,7 +241,14 @@ void Render()
         g_pWhiteBrush);
 
     g_pRenderTarget->EndDraw();
+    HRESULT hr = g_pRenderTarget->EndDraw();
+    if (hr == D2DERR_RECREATE_TARGET)
+    {
+        CleanupDevice();
 
+        // Device lost, recreate device resources
+        InitDeviceResources(g_hwnd);
+    }
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -271,6 +305,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+    case WM_KEYDOWN:
+        switch (wParam)
+        {
+        case VK_UP:    g_keyUpPressed = true; break;
+        case VK_DOWN:  g_keyDownPressed = true; break;
+        case VK_LEFT:  g_keyLeftPressed = true; break;
+        case VK_RIGHT: g_keyRightPressed = true; break;
+        }
+        break;
+
+    case WM_KEYUP:
+        switch (wParam)
+        {
+        case VK_UP:    g_keyUpPressed = false; break;
+        case VK_DOWN:  g_keyDownPressed = false; break;
+        case VK_LEFT:  g_keyLeftPressed = false; break;
+        case VK_RIGHT: g_keyRightPressed = false; break;
+        }
+        break;
+
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
