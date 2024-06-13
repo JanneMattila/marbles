@@ -3,19 +3,51 @@
 
 #include "framework.h"
 #include "WinApp.h"
+// DirectX Header Files
+#include <d2d1.h>
+#include <dwrite.h>
+
+#include <chrono>
+#include <windows.h>
+#include <shellscalingapi.h>
+
+#pragma comment(lib, "dwrite.lib")
+#pragma comment(lib, "d2d1.lib")
 
 #define MAX_LOADSTRING 100
+#ifndef SAFE_RELEASE
+#define SAFE_RELEASE(x) { if ((x)) { (x)->Release(); (x) = nullptr; } }
+#endif
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+bool g_bRunning = true;
+// Global or class member variables
+UINT32 g_frameCount = 0;
+double g_lastTime = 0.0;
+double g_fps = 0.0;
+
+// DirectX Global declarations
+// Create a Direct2D render target
+ID2D1HwndRenderTarget* g_pRenderTarget = nullptr;
+// Initialize Direct2D Factory
+ID2D1Factory* g_pD2DFactory = nullptr;
+// Create a DirectWrite factory and text format object
+IDWriteFactory* g_pDWriteFactory = nullptr;
+IDWriteTextFormat* g_pTextFormat = nullptr;
+
+ID2D1SolidColorBrush* g_pWhiteBrush = nullptr;
+ID2D1SolidColorBrush* g_pBlueBrush = nullptr;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
+HRESULT             InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+void                CleanupDevice();
+void                Render();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -25,43 +57,62 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Place code here.
-
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_WINAPP, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
-    if (!InitInstance (hInstance, nCmdShow))
+    HRESULT hr = InitInstance(hInstance, nCmdShow);
+    if (FAILED(hr))
     {
         return FALSE;
     }
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WINAPP));
 
-    MSG msg;
+    MSG msg = {};
 
-    // Main message loop:
-    while (GetMessage(&msg, nullptr, 0, 0))
+    // Use high_resolution_clock for timing
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    auto timeSpan = currentTime.time_since_epoch();
+    double seconds = std::chrono::duration_cast<std::chrono::duration<double>>(timeSpan).count();
+
+    while (g_bRunning)
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+        // Process messages
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+
+        // Update game state
+
+        // Render a frame
+        Render();
+
+        // Update frame count every frame
+        g_frameCount++;
+
+        // Calculate delta time
+        auto newTime = std::chrono::high_resolution_clock::now();
+        auto newTimeSpan = newTime.time_since_epoch();
+        double newSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(newTimeSpan).count();
+        double deltaTime = newSeconds - g_lastTime;
+
+        // Update FPS every second
+        if (deltaTime >= 1.0)
+        {
+            g_fps = g_frameCount / deltaTime;
+            g_frameCount = 0;
+            g_lastTime = newSeconds;
         }
     }
 
     return (int) msg.wParam;
 }
 
-
-
-//
-//  FUNCTION: MyRegisterClass()
-//
-//  PURPOSE: Registers the window class.
-//
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
@@ -76,55 +127,133 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WINAPP));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_WINAPP);
+    //wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_WINAPP);
+    wcex.lpszMenuName   = 0;
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
     return RegisterClassExW(&wcex);
 }
 
-//
-//   FUNCTION: InitInstance(HINSTANCE, int)
-//
-//   PURPOSE: Saves instance handle and creates main window
-//
-//   COMMENTS:
-//
-//        In this function, we save the instance handle in a global variable and
-//        create and display the main program window.
-//
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // Store instance handle in our global variable
+    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd)
-   {
-      return FALSE;
-   }
+    if (!hWnd) return E_FAIL;
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+    HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_pD2DFactory);
+    if (FAILED(hr)) return hr;
+    RECT rc;
+    GetClientRect(hWnd, &rc); // hWnd is the handle to your application window
 
-   return TRUE;
+    D2D1_SIZE_U size = D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top);
+
+    hr = g_pD2DFactory->CreateHwndRenderTarget(
+        D2D1::RenderTargetProperties(),
+        D2D1::HwndRenderTargetProperties(hWnd, size),
+        &g_pRenderTarget);
+    if (FAILED(hr)) return hr;
+
+    hr = g_pRenderTarget->CreateSolidColorBrush(
+        D2D1::ColorF(D2D1::ColorF::White),
+        &g_pWhiteBrush);
+    if (FAILED(hr)) return hr;
+
+    hr = g_pRenderTarget->CreateSolidColorBrush(
+        D2D1::ColorF(D2D1::ColorF::Blue),
+        &g_pBlueBrush);
+    if (FAILED(hr)) return hr;
+
+    // Create a DirectWrite factory and text format object
+    DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+        reinterpret_cast<IUnknown**>(&g_pDWriteFactory));
+
+    g_pDWriteFactory->CreateTextFormat(
+        L"Arial",                // Font family name
+        nullptr,                 // Font collection (NULL sets it to the system font collection)
+        DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        20.0f,                   // Font size
+        L"",                     // Locale
+        &g_pTextFormat);
+
+    // Set alignment
+    g_pTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+    g_pTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
+
+    return hr;
 }
 
-//
-//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  PURPOSE: Processes messages for the main window.
-//
-//  WM_COMMAND  - process the application menu
-//  WM_PAINT    - Paint the main window
-//  WM_DESTROY  - post a quit message and return
-//
-//
+void Render()
+{
+    if (g_pRenderTarget == nullptr) return;
+
+    g_pRenderTarget->BeginDraw();
+    g_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Black));
+
+    D2D1_RECT_F rectangle = D2D1::RectF(100.f, 100.f, 300.f, 300.f);
+
+    g_pRenderTarget->FillRectangle(&rectangle, g_pBlueBrush);
+
+    wchar_t fpsText[256];
+    swprintf_s(fpsText, L"FPS: %.2lf", g_fps);
+
+    // Draw the text
+    g_pRenderTarget->DrawText(
+        fpsText,
+        wcslen(fpsText),
+        g_pTextFormat,
+        D2D1::RectF(0, 0, 200, 50), // Position and size of the text
+        g_pWhiteBrush);
+
+    g_pRenderTarget->EndDraw();
+
+}
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+    //case WM_KEYDOWN:
+    //    if (wParam == VK_RETURN && (GetAsyncKeyState(VK_SHIFT) & 0x8000)) {
+    //        static bool isFullscreen = false; // Tracks the current fullscreen state
+    //        isFullscreen = !isFullscreen; // Toggle state
+    //        static WINDOWPLACEMENT windowPlacement = { sizeof(windowPlacement) };
+
+    //        if (isFullscreen) {
+    //            // Store the current window dimensions for restoring later
+    //            GetWindowPlacement(hWnd, &windowPlacement);
+
+    //            // Get the dimensions of the primary monitor
+    //            MONITORINFO monitorInfo = { sizeof(monitorInfo) };
+    //            GetMonitorInfo(MonitorFromWindow(hWnd, MONITOR_DEFAULTTOPRIMARY), &monitorInfo);
+
+    //            // Set window style for fullscreen and position it
+    //            SetWindowLong(hWnd, GWL_STYLE, WS_POPUP);
+    //            SetWindowPos(hWnd, HWND_TOP,
+    //                monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
+    //                monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+    //                monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+    //                SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    //        }
+    //        else {
+    //            // Restore the window to its previous dimensions
+    //            SetWindowLong(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
+    //            SetWindowPlacement(hWnd, &windowPlacement);
+    //            SetWindowPos(hWnd, NULL, 0, 0, 0, 0,
+    //                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+    //                SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    //        }
+    //    }
+    //    break;
+
     case WM_COMMAND:
         {
             int wmId = LOWORD(wParam);
@@ -146,11 +275,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
+            Render();
             EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:
+        CleanupDevice();
+        g_bRunning = false; // This will cause the game loop to exit
         PostQuitMessage(0);
         break;
     default:
@@ -177,4 +308,14 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+void CleanupDevice()
+{
+    SAFE_RELEASE(g_pWhiteBrush);
+    SAFE_RELEASE(g_pBlueBrush);
+    SAFE_RELEASE(g_pRenderTarget);
+    SAFE_RELEASE(g_pD2DFactory);
+    SAFE_RELEASE(g_pTextFormat);
+    SAFE_RELEASE(g_pDWriteFactory);
 }
