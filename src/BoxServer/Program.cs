@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using System.Net.Sockets;
 using System.Net;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Drawing;
 using System.Diagnostics;
 using System;
 
@@ -22,6 +20,7 @@ var remoteEndpoint = new IPEndPoint(IPAddress.Any, udpPort);
 const int expectedMessageSize = 12;
 
 System.IO.Hashing.Crc32 crc32 = new();
+var protocolMagicNumber = new ReadOnlySpan<byte>(BitConverter.GetBytes((short)0xFE));
 
 var stopwatch = new Stopwatch();
 stopwatch.Start();
@@ -45,6 +44,17 @@ while (true)
         throw new ApplicationException($"Received {receivedBytes.Length} bytes, expected {expectedMessageSize}.");
     }
 
+    crc32.Reset();
+    crc32.Append(protocolMagicNumber);
+    crc32.Append(new ReadOnlySpan<byte>(receivedBytes, sizeof(short), receivedBytes.Length - sizeof(short)));
+    var crc32valueReceived = BitConverter.ToInt32(receivedBytes);
+    var crc32valueCalculated = BitConverter.ToInt32(crc32.GetCurrentHash());
+
+    if (crc32valueReceived != crc32valueCalculated)
+    {
+        throw new ApplicationException($"Received CRC32 value {crc32valueReceived}, calculated {crc32valueCalculated}.");
+    }
+
     var now = DateTime.UtcNow;
     Box box;
     if (!boxes.TryGetValue(remoteEndpoint, out box))
@@ -58,9 +68,8 @@ while (true)
         boxes.Add(remoteEndpoint, box);
     }
 
-    var crc32value = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, 0));
-    box.X = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, crc32.HashLengthInBytes)) / 1_000f;
-    box.Y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, crc32.HashLengthInBytes + sizeof(int))) / 1_000f;
+    box.X = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, sizeof(short) + crc32.HashLengthInBytes)) / 1_000f;
+    box.Y = IPAddress.NetworkToHostOrder(BitConverter.ToInt32(receivedBytes, sizeof(short) + crc32.HashLengthInBytes + sizeof(int))) / 1_000f;
     box.LastUpdated = now;
 
     // TODO: Add received sequence number to received items list.
