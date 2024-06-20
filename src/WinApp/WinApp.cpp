@@ -10,9 +10,12 @@
 #include <chrono>
 #include <windows.h>
 #include <shellscalingapi.h>
+#include <wincodec.h> // For WIC
 
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "d2d1.lib")
+
+#pragma comment(lib, "windowscodecs.lib")
 
 #define MAX_LOADSTRING 100
 #ifndef SAFE_RELEASE
@@ -50,12 +53,15 @@ IDWriteTextFormat* g_pTextFormat = nullptr;
 ID2D1SolidColorBrush* g_pWhiteBrush = nullptr;
 ID2D1SolidColorBrush* g_pBlueBrush = nullptr;
 
+ID2D1Bitmap* g_pBitmap = nullptr;
+
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 HRESULT             InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void                CleanupDevice();
+HRESULT             LoadPngFromResource(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, UINT resourceID, ID2D1Bitmap** pBitmap);
 void                Render();
 void                UpdatePlayerPosition();
 
@@ -120,6 +126,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             g_lastTime = newSeconds;
         }
     }
+
+    CoUninitialize();
 
     return (int) msg.wParam;
 }
@@ -189,6 +197,18 @@ HRESULT InitDeviceResources(HWND hWnd)
     g_pTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
     g_pTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
 
+    // Initialize COM library with STA concurrency model.
+    hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr)) return hr;
+
+    // Load a PNG image from the resources
+    IWICImagingFactory* pIWICFactory = nullptr;
+    hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory, reinterpret_cast<void**>(&pIWICFactory));
+    if (FAILED(hr)) return hr;
+
+    hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_CAR, &g_pBitmap);
+    if (FAILED(hr)) return hr;
+
 	return hr;
 }
 
@@ -218,13 +238,21 @@ void UpdatePlayerPosition()
     if (g_keyRightPressed) { g_playerRect.left += 10; g_playerRect.right += 10; }
 }
 
-
 void Render()
 {
     if (g_pRenderTarget == nullptr) return;
 
     g_pRenderTarget->BeginDraw();
     g_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Black));
+
+    // Draw the bitmap
+	//g_pRenderTarget->DrawBitmap(g_pBitmap);
+
+    // Define the destination rectangle for the bitmap on the render target
+    D2D1_RECT_F destRect = D2D1::RectF(0.0f, 0.0f, g_pBitmap->GetSize().width, g_pBitmap->GetSize().height);
+
+    // Draw the bitmap
+    g_pRenderTarget->DrawBitmap(g_pBitmap, destRect);
 
     // Use g_playerRect for the player's position and size
     g_pRenderTarget->FillRectangle(&g_playerRect, g_pBlueBrush);
@@ -249,6 +277,72 @@ void Render()
         // Device lost, recreate device resources
         InitDeviceResources(g_hwnd);
     }
+}
+
+HRESULT LoadPngFromResource(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, UINT resourceID, ID2D1Bitmap** pBitmap)
+{
+    HRSRC imageResHandle = nullptr;
+    HGLOBAL imageResDataHandle = nullptr;
+    void* pImageFile = nullptr;
+    DWORD imageFileSize = 0;
+
+    *pBitmap = nullptr;
+
+    // Locate the resource.
+    imageResHandle = FindResource(hInst, MAKEINTRESOURCE(resourceID), L"PNG");
+    if (!imageResHandle) return E_FAIL;
+
+    // Load the resource.
+    imageResDataHandle = LoadResource(hInst, imageResHandle);
+    if (!imageResDataHandle) return E_FAIL;
+
+    // Lock it to get a pointer to the resource data.
+    pImageFile = LockResource(imageResDataHandle);
+    imageFileSize = SizeofResource(hInst, imageResHandle);
+
+    // Create a WIC stream to read the image.
+    IWICStream* pStream = nullptr;
+    HRESULT hr = pIWICFactory->CreateStream(&pStream);
+    if (FAILED(hr)) return hr;
+
+    hr = pStream->InitializeFromMemory(reinterpret_cast<BYTE*>(pImageFile), imageFileSize);
+    if (FAILED(hr)) return hr;
+
+    // Create a decoder for the stream.
+    IWICBitmapDecoder* pDecoder = nullptr;
+    hr = pIWICFactory->CreateDecoderFromStream(pStream, nullptr, WICDecodeMetadataCacheOnLoad, &pDecoder);
+    if (FAILED(hr)) return hr;
+
+    // Read the first frame of the image.
+    IWICBitmapFrameDecode* pFrame = nullptr;
+    hr = pDecoder->GetFrame(0, &pFrame);
+    if (FAILED(hr)) return hr;
+
+    // Convert the image to a pixel format that Direct2D expects
+    IWICFormatConverter* pConverter = nullptr;
+    hr = pIWICFactory->CreateFormatConverter(&pConverter);
+    if (FAILED(hr)) return hr;
+
+    hr = pConverter->Initialize(
+        pFrame,                          // Input bitmap to convert
+        GUID_WICPixelFormat32bppPBGRA,   // Destination pixel format
+        WICBitmapDitherTypeNone,         // Specified dither pattern
+        nullptr,                         // Specify a particular palette
+        0.f,                             // Alpha threshold
+        WICBitmapPaletteTypeCustom       // Palette translation type
+    );
+    if (FAILED(hr)) return hr;
+
+    // Convert the frame to a Direct2D bitmap.
+    hr = pRenderTarget->CreateBitmapFromWicBitmap(pConverter, nullptr, pBitmap);
+    if (FAILED(hr)) return hr;
+    if (*pBitmap == nullptr) return E_FAIL;
+
+    // Clean up.
+    SAFE_RELEASE(pConverter);
+    SAFE_RELEASE(pFrame);
+    SAFE_RELEASE(pDecoder);
+    SAFE_RELEASE(pStream);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -368,6 +462,7 @@ void CleanupDevice()
 {
     SAFE_RELEASE(g_pWhiteBrush);
     SAFE_RELEASE(g_pBlueBrush);
+    SAFE_RELEASE(g_pBitmap);
     SAFE_RELEASE(g_pRenderTarget);
     SAFE_RELEASE(g_pD2DFactory);
     SAFE_RELEASE(g_pTextFormat);

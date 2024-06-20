@@ -139,6 +139,7 @@
     <ResourceCompile Include="WinApp.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="car.png" />
     <Image Include="small.ico" />
     <Image Include="WinApp.ico" />
   </ItemGroup>

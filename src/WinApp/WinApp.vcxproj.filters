@@ -45,5 +45,8 @@
     <Image Include="WinApp.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="car.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
