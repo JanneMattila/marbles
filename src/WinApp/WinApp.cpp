@@ -12,6 +12,9 @@
 #include <shellscalingapi.h>
 #include <wincodec.h> // For WIC
 
+#include <cmath> // Include the <cmath> header for mathematical functions
+#include <string>
+
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "d2d1.lib")
 
@@ -40,6 +43,10 @@ bool g_keyLeftPressed = false;
 bool g_keyRightPressed = false;
 // Player position and size
 D2D1_RECT_F g_playerRect = D2D1::RectF(100.f, 100.f, 30.f, 30.f);
+D2D1_POINT_2F g_playerPosition = D2D1::Point2F(100.f, 100.f);
+double g_playerRotation = -90.0;
+double g_playerRotationSpeed = 0.0;
+double g_playerSpeed = 0.0;
 
 // DirectX Global declarations
 // Create a Direct2D render target
@@ -62,8 +69,8 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void                CleanupDevice();
 HRESULT             LoadPngFromResource(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, UINT resourceID, ID2D1Bitmap** pBitmap);
-void                Render();
-void                UpdatePlayerPosition();
+void                Render(double deltaTime);
+void                UpdatePlayerPosition(double deltaTime);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -82,6 +89,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HRESULT hr = InitInstance(hInstance, nCmdShow);
     if (FAILED(hr))
     {
+        // Display an error message box
+        MessageBox(NULL, L"Failed to initialize the application.", L"Error", MB_ICONERROR | MB_OK);
         return FALSE;
     }
 
@@ -96,6 +105,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     while (g_bRunning)
     {
+        // Update frame count every frame
+        g_frameCount++;
+
+        // Calculate delta time
+        auto newTime = std::chrono::high_resolution_clock::now();
+        auto newTimeSpan = newTime.time_since_epoch();
+        double newSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(newTimeSpan).count();
+        double runningTime = newSeconds - g_lastTime;
+        double deltaTime = newSeconds - seconds;
+        seconds = newSeconds;
+        // Update FPS every second
+        if (runningTime >= 1.0)
+        {
+            g_fps = g_frameCount / runningTime;
+            g_frameCount = 0;
+            g_lastTime = newSeconds;
+        }
+
         // Process messages
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
@@ -104,27 +131,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Update game state
-        UpdatePlayerPosition();
+        UpdatePlayerPosition(deltaTime);
 
         // Render a frame
-        Render();
-
-        // Update frame count every frame
-        g_frameCount++;
-
-        // Calculate delta time
-        auto newTime = std::chrono::high_resolution_clock::now();
-        auto newTimeSpan = newTime.time_since_epoch();
-        double newSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(newTimeSpan).count();
-        double deltaTime = newSeconds - g_lastTime;
-
-        // Update FPS every second
-        if (deltaTime >= 1.0)
-        {
-            g_fps = g_frameCount / deltaTime;
-            g_frameCount = 0;
-            g_lastTime = newSeconds;
-        }
+        Render(deltaTime);
     }
 
     CoUninitialize();
@@ -189,7 +199,7 @@ HRESULT InitDeviceResources(HWND hWnd)
         DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        20.0f,                   // Font size
+        10.0f,                   // Font size
         L"",                     // Locale
         &g_pTextFormat);
 
@@ -208,6 +218,9 @@ HRESULT InitDeviceResources(HWND hWnd)
 
     hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_CAR, &g_pBitmap);
     if (FAILED(hr)) return hr;
+
+    g_playerRect = D2D1::RectF(0.0f, 0.0f, g_pBitmap->GetSize().width / 4, g_pBitmap->GetSize().height / 4);
+    g_playerPosition = D2D1::Point2F(size.width / 2, size.height / 2);
 
 	return hr;
 }
@@ -230,15 +243,104 @@ HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
     return hr;
 }
 
-void UpdatePlayerPosition()
+void UpdatePlayerPosition(double deltaTime)
 {
-    if (g_keyUpPressed) { g_playerRect.top -= 10; g_playerRect.bottom -= 10; }
-    if (g_keyDownPressed) { g_playerRect.top += 10; g_playerRect.bottom += 10; }
-    if (g_keyLeftPressed) { g_playerRect.left -= 10; g_playerRect.right -= 10; }
-    if (g_keyRightPressed) { g_playerRect.left += 10; g_playerRect.right += 10; }
+    float angle = static_cast<float>(g_playerRotation * (3.14159 / 180.0));
+
+    const double maxSpeed = 5.0f;
+    const double maxRotationSpeed = 5.0f;
+    const double acceleration = 10.0f;
+    const double rotationAcceleration = 80.0f;
+    const double deacceleration = 20.0f;
+    const double rotationDeacceleration = 100.0f;
+
+    // Handle keyboard input for rotation
+    if (g_keyLeftPressed)
+    {
+        g_playerRotationSpeed -= rotationAcceleration * deltaTime;
+        if (g_playerRotationSpeed < -maxRotationSpeed)
+        {
+            g_playerRotationSpeed = -maxRotationSpeed;
+        }
+    }
+    if (g_keyRightPressed)
+    {
+        g_playerRotationSpeed += rotationAcceleration * deltaTime;
+        if (g_playerRotationSpeed > maxRotationSpeed)
+        {
+            g_playerRotationSpeed = maxRotationSpeed;
+        }
+    }
+    // Deaccelerate if no left or right keys are pressed
+    if (!g_keyLeftPressed && !g_keyRightPressed)
+    {
+        if (g_playerRotationSpeed > 0.0)
+        {
+            g_playerRotationSpeed -= rotationDeacceleration * deltaTime;
+            if (g_playerRotationSpeed < 0.0)
+            {
+                g_playerRotationSpeed = 0.0;
+            }
+        }
+        else if (g_playerRotationSpeed < 0.0)
+        {
+            g_playerRotationSpeed += rotationDeacceleration * deltaTime;
+            if (g_playerRotationSpeed > 0.0)
+            {
+                g_playerRotationSpeed = 0.0;
+            }
+        }
+    }
+
+    // Handle keyboard input for speed
+    if (g_keyDownPressed)
+    {
+        g_playerSpeed -= acceleration * deltaTime;
+        if (g_playerSpeed < 0.0)
+        {
+            g_playerSpeed = 0.0;
+        }
+    }
+    else if (g_keyUpPressed)
+    {
+        g_playerSpeed += acceleration * deltaTime;
+        if (g_playerSpeed > maxSpeed)
+        {
+            g_playerSpeed = maxSpeed;
+        }
+    }
+    else
+    {
+        // Deaccelerate if no up or down keys are pressed
+        if (g_playerSpeed > 0.0)
+        {
+            g_playerSpeed -= deacceleration * deltaTime;
+            if (g_playerSpeed < 0.0)
+            {
+                g_playerSpeed = 0.0;
+            }
+        }
+        else if (g_playerSpeed < 0.0)
+        {
+            g_playerSpeed += deacceleration * deltaTime;
+            if (g_playerSpeed > 0.0)
+            {
+                g_playerSpeed = 0.0;
+            }
+        }
+    }
+
+    double moveX = g_playerSpeed * cos(angle);
+    double moveY = g_playerSpeed * sin(angle);
+
+    g_playerPosition.x += moveX;
+    g_playerPosition.y += moveY;
+
+    // Update player rotation based on rotation speed
+    g_playerRotation += g_playerRotationSpeed;
 }
 
-void Render()
+void Render(double deltaTime)
 {
     if (g_pRenderTarget == nullptr) return;
 
@@ -246,16 +348,25 @@ void Render()
     g_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Black));
 
     // Draw the bitmap
-	//g_pRenderTarget->DrawBitmap(g_pBitmap);
+    D2D1_RECT_F destRect = D2D1::RectF(
+        g_playerPosition.x, g_playerPosition.y,
+        g_playerPosition.x + g_playerRect.right, g_playerPosition.y + g_playerRect.bottom);
 
-    // Define the destination rectangle for the bitmap on the render target
-    D2D1_RECT_F destRect = D2D1::RectF(0.0f, 0.0f, g_pBitmap->GetSize().width, g_pBitmap->GetSize().height);
+    // Calculate the center point of the bitmap
+    D2D1_POINT_2F center = D2D1::Point2F(
+        g_playerPosition.x + g_playerRect.right / 2,
+        g_playerPosition.y + g_playerRect.bottom / 2);
 
-    // Draw the bitmap
+    // Rotate the bitmap based on the player rotation
+    g_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Rotation(static_cast<float>(g_playerRotation + 90), center));
+
     g_pRenderTarget->DrawBitmap(g_pBitmap, destRect);
 
+    // Reset the transform
+    g_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+
     // Use g_playerRect for the player's position and size
-    g_pRenderTarget->FillRectangle(&g_playerRect, g_pBlueBrush);
+    //g_pRenderTarget->FillRectangle(&g_playerRect, g_pBlueBrush);
 
     wchar_t fpsText[256];
     swprintf_s(fpsText, L"FPS: %.2lf", g_fps);
@@ -266,6 +377,38 @@ void Render()
         wcslen(fpsText),
         g_pTextFormat,
         D2D1::RectF(0, 0, 200, 50), // Position and size of the text
+        g_pWhiteBrush);
+
+    // Draw the keyboard state
+    std::wstring text = L"Delta time:\n";
+    text += std::to_wstring(deltaTime);
+    text += L"\nSpeed:\n";
+    text += std::to_wstring(g_playerSpeed);
+    text += L"\nRotation:\n";
+    text += std::to_wstring(g_playerRotation);
+    text += L"\nKeys pressed: ";
+    if (g_keyUpPressed)
+    {
+        text += L"Up ";
+    }
+    if (g_keyDownPressed)
+    {
+        text += L"Down ";
+    }
+    if (g_keyLeftPressed)
+    {
+        text += L"Left ";
+    }
+    if (g_keyRightPressed)
+    {
+        text += L"Right ";
+    }
+
+    g_pRenderTarget->DrawText(
+        text.c_str(),
+        text.length(),
+        g_pTextFormat,
+        D2D1::RectF(0, 50, 200, 100), // Position and size of the text
         g_pWhiteBrush);
 
     g_pRenderTarget->EndDraw();
@@ -423,7 +566,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
-            Render();
+            //Render();
             EndPaint(hWnd, &ps);
         }
         break;
