@@ -247,30 +247,54 @@ void UpdatePlayerPosition(double deltaTime)
 {
     float angle = static_cast<float>(g_playerRotation * (3.14159 / 180.0));
 
-    const double maxSpeed = 5.0f;
+    const double maxSpeed = 6.0f;
+    const double maxSpeedReverse = 2.0f;
     const double maxRotationSpeed = 5.0f;
     const double acceleration = 10.0f;
     const double rotationAcceleration = 80.0f;
-    const double deacceleration = 20.0f;
+    const double deacceleration = 5.0f;
     const double rotationDeacceleration = 100.0f;
 
     // Handle keyboard input for rotation
-    if (g_keyLeftPressed)
+    if (g_playerSpeed >= 0)
     {
-        g_playerRotationSpeed -= rotationAcceleration * deltaTime;
-        if (g_playerRotationSpeed < -maxRotationSpeed)
+        if (g_keyLeftPressed)
         {
-            g_playerRotationSpeed = -maxRotationSpeed;
+            g_playerRotationSpeed -= rotationAcceleration * deltaTime;
+            if (g_playerRotationSpeed < -maxRotationSpeed)
+            {
+                g_playerRotationSpeed = -maxRotationSpeed;
+            }
+        }
+        if (g_keyRightPressed)
+        {
+            g_playerRotationSpeed += rotationAcceleration * deltaTime;
+            if (g_playerRotationSpeed > maxRotationSpeed)
+            {
+                g_playerRotationSpeed = maxRotationSpeed;
+            }
         }
     }
-    if (g_keyRightPressed)
+    else if (g_playerSpeed < 0)
     {
-        g_playerRotationSpeed += rotationAcceleration * deltaTime;
-        if (g_playerRotationSpeed > maxRotationSpeed)
+        if (g_keyLeftPressed)
         {
-            g_playerRotationSpeed = maxRotationSpeed;
+            g_playerRotationSpeed += rotationAcceleration * deltaTime;
+            if (g_playerRotationSpeed > maxRotationSpeed)
+            {
+                g_playerRotationSpeed = maxRotationSpeed;
+            }
+        }
+        if (g_keyRightPressed)
+        {
+            g_playerRotationSpeed -= rotationAcceleration * deltaTime;
+            if (g_playerRotationSpeed < -maxRotationSpeed)
+            {
+                g_playerRotationSpeed = -maxRotationSpeed;
+            }
         }
     }
+
     // Deaccelerate if no left or right keys are pressed
     if (!g_keyLeftPressed && !g_keyRightPressed)
     {
@@ -295,11 +319,23 @@ void UpdatePlayerPosition(double deltaTime)
     // Handle keyboard input for speed
     if (g_keyDownPressed)
     {
-        g_playerSpeed -= acceleration * deltaTime;
-        if (g_playerSpeed < 0.0)
+        if (g_playerSpeed > 0)
         {
-            g_playerSpeed = 0.0;
+            g_playerSpeed -= acceleration * deltaTime;
+            if (g_playerSpeed < 0.0)
+            {
+                g_playerSpeed = 0.0;
+            }
         }
+        else
+		{
+			g_playerSpeed -= acceleration * deltaTime;
+			if (g_playerSpeed < -maxSpeedReverse)
+			{
+				g_playerSpeed = -maxSpeedReverse;
+			}
+		}
+
     }
     else if (g_keyUpPressed)
     {
