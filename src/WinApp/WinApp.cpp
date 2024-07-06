@@ -25,6 +25,10 @@
 #define SAFE_RELEASE(x) { if ((x)) { (x)->Release(); (x) = nullptr; } }
 #endif
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 HWND g_hwnd;                                      // Handle to the window
@@ -44,7 +48,8 @@ bool g_keyRightPressed = false;
 // Player position and size
 D2D1_RECT_F g_playerRect = D2D1::RectF(100.f, 100.f, 30.f, 30.f);
 D2D1_POINT_2F g_playerPosition = D2D1::Point2F(100.f, 100.f);
-double g_playerRotation = -90.0;
+double g_playerRotation = 0.0;
+double g_wheelAngle = 0.0; // Wheel angle in radians, relative to the car's orientation
 double g_playerRotationSpeed = 0.0;
 double g_playerSpeed = 0.0;
 
@@ -245,33 +250,31 @@ HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 void UpdatePlayerPosition(double deltaTime)
 {
-    float angle = static_cast<float>(g_playerRotation * (3.14159 / 180.0));
-
-    const double maxSpeed = 6.0f;
+    const double maxSpeed = 3.0f;
     const double maxSpeedReverse = 2.0f;
-    const double maxRotationSpeed = 5.0f;
+    const double maxRotationAngle = 4.0f;
     const double acceleration = 10.0f;
-    const double rotationAcceleration = 80.0f;
+    const double rotationAcceleration = 0.5f;
     const double deacceleration = 5.0f;
-    const double rotationDeacceleration = 100.0f;
+    const double rotationDeacceleration = 0.9;
 
     // Handle keyboard input for rotation
     if (g_playerSpeed >= 0)
     {
         if (g_keyLeftPressed)
         {
-            g_playerRotationSpeed -= rotationAcceleration * deltaTime;
-            if (g_playerRotationSpeed < -maxRotationSpeed)
+            g_wheelAngle -= rotationAcceleration;
+            if (g_wheelAngle < -maxRotationAngle)
             {
-                g_playerRotationSpeed = -maxRotationSpeed;
+                g_wheelAngle = -maxRotationAngle;
             }
         }
         if (g_keyRightPressed)
         {
-            g_playerRotationSpeed += rotationAcceleration * deltaTime;
-            if (g_playerRotationSpeed > maxRotationSpeed)
+            g_wheelAngle += rotationAcceleration;
+            if (g_wheelAngle > maxRotationAngle)
             {
-                g_playerRotationSpeed = maxRotationSpeed;
+                g_wheelAngle = maxRotationAngle;
             }
         }
     }
@@ -279,18 +282,18 @@ void UpdatePlayerPosition(double deltaTime)
     {
         if (g_keyLeftPressed)
         {
-            g_playerRotationSpeed += rotationAcceleration * deltaTime;
-            if (g_playerRotationSpeed > maxRotationSpeed)
+            g_wheelAngle += rotationAcceleration;
+            if (g_wheelAngle > maxRotationAngle)
             {
-                g_playerRotationSpeed = maxRotationSpeed;
+                g_wheelAngle = maxRotationAngle;
             }
         }
         if (g_keyRightPressed)
         {
-            g_playerRotationSpeed -= rotationAcceleration * deltaTime;
-            if (g_playerRotationSpeed < -maxRotationSpeed)
+            g_wheelAngle -= rotationAcceleration;
+            if (g_wheelAngle < -maxRotationAngle)
             {
-                g_playerRotationSpeed = -maxRotationSpeed;
+                g_wheelAngle = -maxRotationAngle;
             }
         }
     }
@@ -298,22 +301,7 @@ void UpdatePlayerPosition(double deltaTime)
     // Deaccelerate if no left or right keys are pressed
     if (!g_keyLeftPressed && !g_keyRightPressed)
     {
-        if (g_playerRotationSpeed > 0.0)
-        {
-            g_playerRotationSpeed -= rotationDeacceleration * deltaTime;
-            if (g_playerRotationSpeed < 0.0)
-            {
-                g_playerRotationSpeed = 0.0;
-            }
-        }
-        else if (g_playerRotationSpeed < 0.0)
-        {
-            g_playerRotationSpeed += rotationDeacceleration * deltaTime;
-            if (g_playerRotationSpeed > 0.0)
-            {
-                g_playerRotationSpeed = 0.0;
-            }
-        }
+        g_wheelAngle *= rotationDeacceleration;
     }
 
     // Handle keyboard input for speed
@@ -366,14 +354,19 @@ void UpdatePlayerPosition(double deltaTime)
         }
     }
 
-    double moveX = g_playerSpeed * cos(angle);
-    double moveY = g_playerSpeed * sin(angle);
+    // Calculate the car's new orientation based on the wheel angle
+    // This simulates the car gradually aligning with the direction of the wheels
+    g_playerRotation += g_wheelAngle * deltaTime;
+
+    // Calculate movement direction based on the car's orientation and wheel angle
+    double movementDirection = g_playerRotation + g_wheelAngle * deltaTime;
+
+    // Calculate the new position based on the movement direction
+    float moveX = g_playerSpeed * cos(movementDirection);
+    float moveY = g_playerSpeed * sin(movementDirection);
 
     g_playerPosition.x += moveX;
     g_playerPosition.y += moveY;
-
-    // Update player rotation based on rotation speed
-    g_playerRotation += g_playerRotationSpeed;
 }
 
 void Render(double deltaTime)
@@ -394,7 +387,8 @@ void Render(double deltaTime)
         g_playerPosition.y + g_playerRect.bottom / 2);
 
     // Rotate the bitmap based on the player rotation
-    g_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Rotation(static_cast<float>(g_playerRotation + 90), center));
+    float degrees = g_playerRotation * (180.0 / M_PI);
+    g_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Rotation(static_cast<float>(degrees + 90), center));
 
     g_pRenderTarget->DrawBitmap(g_pBitmap, destRect);
 
