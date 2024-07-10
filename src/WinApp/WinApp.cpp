@@ -14,6 +14,7 @@
 
 #include <cmath> // Include the <cmath> header for mathematical functions
 #include <string>
+#include <map>
 
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "d2d1.lib")
@@ -66,6 +67,23 @@ ID2D1SolidColorBrush* g_pWhiteBrush = nullptr;
 ID2D1SolidColorBrush* g_pBlueBrush = nullptr;
 
 ID2D1Bitmap* g_pBitmap = nullptr;
+
+enum class RoadSurface {
+    Asphalt,
+    Gravel,
+    Ice
+};
+
+// Traction coefficients for different surfaces
+const std::map<RoadSurface, double> tractionCoefficients = {
+    {RoadSurface::Asphalt, 1.0}, // High traction
+    {RoadSurface::Gravel, 0.7},  // Medium traction
+    {RoadSurface::Ice, 0.3}      // Low traction
+};
+
+// Assume the car starts on Asphalt
+RoadSurface currentSurface = RoadSurface::Asphalt;
+
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -225,7 +243,8 @@ HRESULT InitDeviceResources(HWND hWnd)
     if (FAILED(hr)) return hr;
 
     g_playerRect = D2D1::RectF(0.0f, 0.0f, g_pBitmap->GetSize().width / 4, g_pBitmap->GetSize().height / 4);
-    g_playerPosition = D2D1::Point2F(size.width / 2, size.height / 2);
+    //g_playerPosition = D2D1::Point2F(size.width / 2, size.height / 2);
+    g_playerPosition = D2D1::Point2F(100, 100);
 
 	return hr;
 }
@@ -250,20 +269,28 @@ HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 void UpdatePlayerPosition(double deltaTime)
 {
-    const double maxSpeed = 3.0f;
+    double traction = tractionCoefficients.at(currentSurface);
+
+    const double maxSpeed = 3.0f; // Max speed in units per second
     const double maxSpeedReverse = 2.0f;
     const double maxRotationAngle = 4.0f;
-    const double acceleration = 10.0f;
-    const double rotationAcceleration = 0.5f;
-    const double deacceleration = 5.0f;
-    const double rotationDeacceleration = 0.9;
+    const double acceleration = 10.0f * traction;
+    const double deacceleration = 5.0f * traction;
+    const double rotationAcceleration = 0.5f * traction;
+    const double rotationDeacceleration = 0.9 * traction;
+
+    const double dragCoefficient = 0.05; // Drag coefficient for natural deceleration
+    const double turnSensitivity = 0.5 * traction; // Sensitivity of turning based on speed
+    const double driftFactor = 0.3; // Factor controlling the amount of slide during a turn
+
+    double turnRate = maxSpeed / (fabs(g_playerSpeed) + 1) * turnSensitivity;
 
     // Handle keyboard input for rotation
     if (g_playerSpeed >= 0)
     {
         if (g_keyLeftPressed)
         {
-            g_wheelAngle -= rotationAcceleration;
+            g_wheelAngle -= turnRate;
             if (g_wheelAngle < -maxRotationAngle)
             {
                 g_wheelAngle = -maxRotationAngle;
@@ -271,7 +298,7 @@ void UpdatePlayerPosition(double deltaTime)
         }
         if (g_keyRightPressed)
         {
-            g_wheelAngle += rotationAcceleration;
+            g_wheelAngle += turnRate;
             if (g_wheelAngle > maxRotationAngle)
             {
                 g_wheelAngle = maxRotationAngle;
@@ -282,7 +309,7 @@ void UpdatePlayerPosition(double deltaTime)
     {
         if (g_keyLeftPressed)
         {
-            g_wheelAngle += rotationAcceleration;
+            g_wheelAngle += turnRate;
             if (g_wheelAngle > maxRotationAngle)
             {
                 g_wheelAngle = maxRotationAngle;
@@ -290,7 +317,7 @@ void UpdatePlayerPosition(double deltaTime)
         }
         if (g_keyRightPressed)
         {
-            g_wheelAngle -= rotationAcceleration;
+            g_wheelAngle -= turnRate;
             if (g_wheelAngle < -maxRotationAngle)
             {
                 g_wheelAngle = -maxRotationAngle;
@@ -316,13 +343,13 @@ void UpdatePlayerPosition(double deltaTime)
             }
         }
         else
-		{
-			g_playerSpeed -= acceleration * deltaTime;
-			if (g_playerSpeed < -maxSpeedReverse)
-			{
-				g_playerSpeed = -maxSpeedReverse;
-			}
-		}
+        {
+            g_playerSpeed -= acceleration * deltaTime;
+            if (g_playerSpeed < -maxSpeedReverse)
+            {
+                g_playerSpeed = -maxSpeedReverse;
+            }
+        }
 
     }
     else if (g_keyUpPressed)
@@ -354,19 +381,22 @@ void UpdatePlayerPosition(double deltaTime)
         }
     }
 
-    // Calculate the car's new orientation based on the wheel angle
-    // This simulates the car gradually aligning with the direction of the wheels
-    g_playerRotation += g_wheelAngle * deltaTime;
+    if (g_playerSpeed != 0.0)
+    {
+        // Calculate the car's new orientation based on the wheel angle
+        // This simulates the car gradually aligning with the direction of the wheels
+        g_playerRotation += g_wheelAngle * deltaTime;
 
-    // Calculate movement direction based on the car's orientation and wheel angle
-    double movementDirection = g_playerRotation + g_wheelAngle * deltaTime;
+        // Calculate movement direction based on the car's orientation and wheel angle
+        double movementDirection = g_playerRotation + g_wheelAngle * deltaTime;
 
-    // Calculate the new position based on the movement direction
-    float moveX = g_playerSpeed * cos(movementDirection);
-    float moveY = g_playerSpeed * sin(movementDirection);
+        // Calculate the new position based on the movement direction
+        float moveX = g_playerSpeed * cos(movementDirection);
+        float moveY = g_playerSpeed * sin(movementDirection);
 
-    g_playerPosition.x += moveX;
-    g_playerPosition.y += moveY;
+        g_playerPosition.x += moveX;
+        g_playerPosition.y += moveY;
+    }
 }
 
 void Render(double deltaTime)
