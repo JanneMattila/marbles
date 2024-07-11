@@ -15,6 +15,7 @@
 #include <cmath> // Include the <cmath> header for mathematical functions
 #include <string>
 #include <map>
+#include <vector>
 
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "d2d1.lib")
@@ -64,9 +65,42 @@ IDWriteFactory* g_pDWriteFactory = nullptr;
 IDWriteTextFormat* g_pTextFormat = nullptr;
 
 ID2D1SolidColorBrush* g_pWhiteBrush = nullptr;
+ID2D1SolidColorBrush* g_pGrayBrush = nullptr;
 ID2D1SolidColorBrush* g_pBlueBrush = nullptr;
 
-ID2D1Bitmap* g_pBitmap = nullptr;
+ID2D1Bitmap* g_pCarBitmap = nullptr;
+ID2D1Bitmap* g_pExplosionBitmap = nullptr;
+
+const int totalFrames = 48; // Total frames in the sprite sheet
+const int frameWidth = 240; // Width of each frame
+const int frameHeight = 240; // Height of each frame
+float frameDuration = 0.08f; // Duration of each frame in seconds
+
+struct Explosion {
+    D2D1_POINT_2F position;
+    int currentFrame = 0;
+    float frameTime = frameDuration; // Time until the next frame
+    bool isActive = true; // Whether the explosion is active or has finished
+};
+
+std::vector<Explosion> explosions;
+
+struct SmokeParticle {
+    D2D1_POINT_2F position;
+    D2D1_POINT_2F velocity;
+    float size;
+    float lifespan; // Time remaining before the particle disappears
+};
+
+std::vector<SmokeParticle> smokeParticles;
+
+struct TireMark {
+    D2D1_POINT_2F startPoint;
+    D2D1_POINT_2F endPoint;
+    // Additional properties like width or color can be added here
+};
+
+std::vector<TireMark> tireMarks;
 
 enum class RoadSurface {
     Asphalt,
@@ -208,6 +242,11 @@ HRESULT InitDeviceResources(HWND hWnd)
     if (FAILED(hr)) return hr;
 
     hr = g_pRenderTarget->CreateSolidColorBrush(
+        D2D1::ColorF(D2D1::ColorF::Gray),
+        &g_pGrayBrush);
+    if (FAILED(hr)) return hr;
+
+    hr = g_pRenderTarget->CreateSolidColorBrush(
         D2D1::ColorF(D2D1::ColorF::Blue),
         &g_pBlueBrush);
     if (FAILED(hr)) return hr;
@@ -239,12 +278,15 @@ HRESULT InitDeviceResources(HWND hWnd)
     hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory, reinterpret_cast<void**>(&pIWICFactory));
     if (FAILED(hr)) return hr;
 
-    hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_CAR, &g_pBitmap);
+    hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_CAR, &g_pCarBitmap);
     if (FAILED(hr)) return hr;
 
-    g_playerRect = D2D1::RectF(0.0f, 0.0f, g_pBitmap->GetSize().width / 4, g_pBitmap->GetSize().height / 4);
+    g_playerRect = D2D1::RectF(0.0f, 0.0f, g_pCarBitmap->GetSize().width / 4, g_pCarBitmap->GetSize().height / 4);
     //g_playerPosition = D2D1::Point2F(size.width / 2, size.height / 2);
     g_playerPosition = D2D1::Point2F(100, 100);
+
+    hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_EXPLOSION_ANIMATION, &g_pExplosionBitmap);
+    if (FAILED(hr)) return hr;
 
 	return hr;
 }
@@ -267,6 +309,61 @@ HRESULT InitInstance(HINSTANCE hInstance, int nCmdShow)
     return hr;
 }
 
+void EmitSmokeParticles(const D2D1_POINT_2F& carPosition, float carRotation) {
+    SmokeParticle particle;
+    particle.position = carPosition; // Start at the car's position
+    particle.velocity = D2D1::Point2F(cos(carRotation) * -1.0f, sin(carRotation) * -1.0f); // Move opposite to car's direction
+    particle.size = 5.0f; // Initial size of the smoke particle
+    particle.lifespan = 1.0f; // 1 second lifespan
+
+    smokeParticles.push_back(particle);
+}
+
+void UpdateSmokeParticles(float deltaTime) {
+    for (auto& particle : smokeParticles) {
+        particle.position.x += particle.velocity.x * deltaTime;
+        particle.position.y += particle.velocity.y * deltaTime;
+        particle.lifespan -= deltaTime;
+    }
+
+    // Remove dead particles
+    smokeParticles.erase(std::remove_if(smokeParticles.begin(), smokeParticles.end(),
+        [](const SmokeParticle& p) { return p.lifespan <= 0; }),
+        smokeParticles.end());
+}
+
+void UpdateExplosions(float deltaTime) {
+    for (auto& explosion : explosions) {
+        if (!explosion.isActive) continue;
+
+        explosion.frameTime -= deltaTime;
+        if (explosion.frameTime <= 0) {
+            explosion.currentFrame++;
+            explosion.frameTime = frameDuration; // Reset timer for the next frame, adjust for desired frame rate
+
+            if (explosion.currentFrame >= totalFrames) {
+                explosion.isActive = false; // Animation finished
+            }
+        }
+    }
+
+    // Remove inactive explosions
+    explosions.erase(std::remove_if(explosions.begin(), explosions.end(),
+        [](const Explosion& e) { return !e.isActive; }),
+         explosions.end());
+}
+
+void AddExplosion(const D2D1_POINT_2F& position) {
+    Explosion newExplosion;
+    newExplosion.position = position;
+    explosions.push_back(newExplosion);
+
+    // Debug output
+    wchar_t debugMessage[256];
+    swprintf_s(debugMessage, L"Explosion added at position: (%f, %f)\n", position.x, position.y);
+    OutputDebugString(debugMessage);
+}
+
 void UpdatePlayerPosition(double deltaTime)
 {
     double traction = tractionCoefficients.at(currentSurface);
@@ -281,15 +378,31 @@ void UpdatePlayerPosition(double deltaTime)
 
     const double dragCoefficient = 0.05; // Drag coefficient for natural deceleration
     const double turnSensitivity = 0.5 * traction; // Sensitivity of turning based on speed
-    const double driftFactor = 0.3; // Factor controlling the amount of slide during a turn
+    double driftFactor = 0.1; // Factor controlling the amount of slide during a turn
 
     double turnRate = maxSpeed / (fabs(g_playerSpeed) + 1) * turnSensitivity;
+    bool isTurning = false;
+
+    // Determine if the car is attempting a quick turn
+    bool isQuickTurn = fabs(g_wheelAngle) > 0.2; // Example condition for quick turns
+
+    // Adjust the drift factor based on conditions (e.g., road surface, speed)
+    if (isQuickTurn && g_playerSpeed > maxSpeed / 2.0) // Example condition for sliding
+    {
+        driftFactor += 0.2; // Increase drift factor for more slide
+        EmitSmokeParticles(g_playerPosition, g_playerRotation);
+    }
+    else
+    {
+        driftFactor = 0.1; // Reset to default drift factor
+    }
 
     // Handle keyboard input for rotation
     if (g_playerSpeed >= 0)
     {
         if (g_keyLeftPressed)
         {
+            isTurning = true;
             g_wheelAngle -= turnRate;
             if (g_wheelAngle < -maxRotationAngle)
             {
@@ -298,6 +411,7 @@ void UpdatePlayerPosition(double deltaTime)
         }
         if (g_keyRightPressed)
         {
+            isTurning = true;
             g_wheelAngle += turnRate;
             if (g_wheelAngle > maxRotationAngle)
             {
@@ -385,10 +499,11 @@ void UpdatePlayerPosition(double deltaTime)
     {
         // Calculate the car's new orientation based on the wheel angle
         // This simulates the car gradually aligning with the direction of the wheels
-        g_playerRotation += g_wheelAngle * deltaTime;
+        auto wheel = g_wheelAngle * deltaTime * (1.0 - driftFactor);
+        g_playerRotation += wheel;
 
         // Calculate movement direction based on the car's orientation and wheel angle
-        double movementDirection = g_playerRotation + g_wheelAngle * deltaTime;
+        double movementDirection = g_playerRotation + wheel + (isTurning ? driftFactor : 0.0);
 
         // Calculate the new position based on the movement direction
         float moveX = g_playerSpeed * cos(movementDirection);
@@ -396,8 +511,48 @@ void UpdatePlayerPosition(double deltaTime)
 
         g_playerPosition.x += moveX;
         g_playerPosition.y += moveY;
+
+        // Example of adding a tire mark when the car is drifting
+        //if (isDrifting) {
+            TireMark mark;
+            mark.startPoint = g_playerPosition; // Assuming this is the center of the car
+            mark.endPoint = D2D1::Point2F(g_playerPosition.x + cos(g_playerRotation) * 10, g_playerPosition.y + sin(g_playerRotation) * 10); // Example endpoint calculation
+            tireMarks.push_back(mark);
+        //}
+    }
+
+    if (explosions.empty())
+    {
+        AddExplosion(D2D1::Point2F(100.0f, 100.0f)); // Example position
+    }
+
+    UpdateExplosions(deltaTime);
+    UpdateSmokeParticles(deltaTime);
+}
+
+void RenderExplosions(ID2D1HwndRenderTarget* pRenderTarget, ID2D1Bitmap* pSpriteSheet) {
+    for (const auto& explosion : explosions) {
+        if (!explosion.isActive) continue;
+
+        // Calculate the column and row based on the current frame
+        int column = explosion.currentFrame % 8; // 8 columns
+        int row = explosion.currentFrame / 8; // 6 rows
+
+        // Calculate the source rectangle of the current frame
+        D2D1_RECT_F srcRect = D2D1::RectF(
+            frameWidth * column, frameHeight * row,
+            frameWidth * (column + 1), frameHeight * (row + 1));
+
+        // Destination rectangle on the screen
+        D2D1_RECT_F destRect = D2D1::RectF(
+            explosion.position.x, explosion.position.y,
+            explosion.position.x + frameWidth, explosion.position.y + frameHeight);
+
+        // Draw the current frame
+        pRenderTarget->DrawBitmap(pSpriteSheet, destRect, 1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, srcRect);
     }
 }
+
 
 void Render(double deltaTime)
 {
@@ -405,6 +560,10 @@ void Render(double deltaTime)
 
     g_pRenderTarget->BeginDraw();
     g_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Black));
+
+    for (const auto& mark : tireMarks) {
+        g_pRenderTarget->DrawLine(mark.startPoint, mark.endPoint, g_pWhiteBrush, 2.0f); // Draw each tire mark as a line
+    }
 
     // Draw the bitmap
     D2D1_RECT_F destRect = D2D1::RectF(
@@ -420,10 +579,18 @@ void Render(double deltaTime)
     float degrees = g_playerRotation * (180.0 / M_PI);
     g_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Rotation(static_cast<float>(degrees + 90), center));
 
-    g_pRenderTarget->DrawBitmap(g_pBitmap, destRect);
+    g_pRenderTarget->DrawBitmap(g_pCarBitmap, destRect);
 
     // Reset the transform
     g_pRenderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
+
+    for (const auto& particle : smokeParticles) {
+        // Draw each particle as a circle
+        D2D1_ELLIPSE ellipse = D2D1::Ellipse(particle.position, particle.size, particle.size);
+        g_pRenderTarget->FillEllipse(&ellipse, g_pGrayBrush);
+    }
+
+    RenderExplosions(g_pRenderTarget, g_pExplosionBitmap);
 
     // Use g_playerRect for the player's position and size
     //g_pRenderTarget->FillRectangle(&g_playerRect, g_pBlueBrush);
@@ -664,8 +831,10 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 void CleanupDevice()
 {
     SAFE_RELEASE(g_pWhiteBrush);
+    SAFE_RELEASE(g_pGrayBrush);
     SAFE_RELEASE(g_pBlueBrush);
-    SAFE_RELEASE(g_pBitmap);
+    SAFE_RELEASE(g_pCarBitmap);
+    SAFE_RELEASE(g_pExplosionBitmap);
     SAFE_RELEASE(g_pRenderTarget);
     SAFE_RELEASE(g_pD2DFactory);
     SAFE_RELEASE(g_pTextFormat);

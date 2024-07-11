@@ -140,6 +140,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="car.png" />
+    <Image Include="explosion.png" />
     <Image Include="small.ico" />
     <Image Include="WinApp.ico" />
   </ItemGroup>
