@@ -278,6 +278,7 @@ HRESULT InitDeviceResources(HWND hWnd)
     hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory, reinterpret_cast<void**>(&pIWICFactory));
     if (FAILED(hr)) return hr;
 
+    // bing.com/create
     hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_CAR, &g_pCarBitmap);
     if (FAILED(hr)) return hr;
 
@@ -285,6 +286,7 @@ HRESULT InitDeviceResources(HWND hWnd)
     //g_playerPosition = D2D1::Point2F(size.width / 2, size.height / 2);
     g_playerPosition = D2D1::Point2F(100, 100);
 
+    // https://www.hiclipart.com/free-transparent-background-png-clipart-plufo
     hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_EXPLOSION_ANIMATION, &g_pExplosionBitmap);
     if (FAILED(hr)) return hr;
 
@@ -389,7 +391,7 @@ void UpdatePlayerPosition(double deltaTime)
     // Adjust the drift factor based on conditions (e.g., road surface, speed)
     if (isQuickTurn && g_playerSpeed > maxSpeed / 2.0) // Example condition for sliding
     {
-        driftFactor += 0.2; // Increase drift factor for more slide
+        driftFactor += 0.5; // Increase drift factor for more slide
         EmitSmokeParticles(g_playerPosition, g_playerRotation);
     }
     else
@@ -503,6 +505,7 @@ void UpdatePlayerPosition(double deltaTime)
         g_playerRotation += wheel;
 
         // Calculate movement direction based on the car's orientation and wheel angle
+        //double movementDirection = g_playerRotation + wheel + (isTurning ? driftFactor : 0.0);
         double movementDirection = g_playerRotation + wheel + (isTurning ? driftFactor : 0.0);
 
         // Calculate the new position based on the movement direction
