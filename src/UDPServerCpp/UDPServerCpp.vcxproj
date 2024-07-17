@@ -129,6 +129,11 @@
   <ItemGroup>
     <ClCompile Include="UDPServerCpp.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="config.ini">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
