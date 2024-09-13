@@ -366,7 +366,81 @@ void AddExplosion(const D2D1_POINT_2F& position) {
     OutputDebugString(debugMessage);
 }
 
-void UpdatePlayerPosition(double deltaTime)
+void UpdatePlayerPosition(double deltaTime) {
+    // Constants
+    const double maxSpeed = 200.0; // Maximum speed of the car
+    const double acceleration = 100.0; // Acceleration force
+    const double friction = 0.4; // Friction coefficient
+    const double turnSensitivity = 2.0; // Sensitivity of turning
+    const double slideFactor = 0.1; // Factor controlling the amount of slide during a turn
+
+    // Initialize force vector
+    D2D1_POINT_2F force = D2D1::Point2F(0.0f, 0.0f);
+
+    // Apply acceleration or deceleration based on user input
+    if (g_keyUpPressed) {
+        force.y += acceleration;
+        EmitSmokeParticles(g_playerPosition, g_playerRotation);
+    }
+    if (g_keyDownPressed) {
+        force.y -= acceleration;
+    }
+
+    // Apply friction
+    force.x -= g_playerSpeed * friction;
+    force.y -= g_playerSpeed * friction;
+
+    // Update velocity based on force
+    g_playerSpeed += force.y * deltaTime;
+    if (g_playerSpeed > maxSpeed) {
+        g_playerSpeed = maxSpeed;
+    }
+    else if (g_playerSpeed < -maxSpeed) {
+        g_playerSpeed = -maxSpeed;
+    }
+
+    // Update rotation based on user input
+    if (g_keyLeftPressed) {
+        g_playerRotation -= turnSensitivity * deltaTime;
+    }
+    if (g_keyRightPressed) {
+        g_playerRotation += turnSensitivity * deltaTime;
+    }
+
+    // Ensure the rotation angle stays within 0 to 2*PI
+    if (g_playerRotation > 2 * M_PI) {
+        g_playerRotation -= 2 * M_PI;
+    }
+    else if (g_playerRotation < 0) {
+        g_playerRotation += 2 * M_PI;
+    }
+
+    // Update position based on velocity and rotation
+    g_playerPosition.x += g_playerSpeed * cos(g_playerRotation) * deltaTime;
+    g_playerPosition.y += g_playerSpeed * sin(g_playerRotation) * deltaTime;
+
+    // Handle sliding when turning
+    if (g_keyLeftPressed || g_keyRightPressed) {
+        g_playerPosition.x += g_playerSpeed * slideFactor * sin(g_playerRotation) * deltaTime;
+        g_playerPosition.y -= g_playerSpeed * slideFactor * cos(g_playerRotation) * deltaTime;
+    }
+
+    TireMark mark;
+    mark.startPoint = g_playerPosition; // Assuming this is the center of the car
+    mark.endPoint = D2D1::Point2F(g_playerPosition.x + cos(g_playerRotation) * 10, g_playerPosition.y + sin(g_playerRotation) * 10); // Example endpoint calculation
+    tireMarks.push_back(mark);
+
+    if (explosions.empty())
+    {
+        AddExplosion(D2D1::Point2F(100.0f, 100.0f)); // Example position
+    }
+
+    UpdateExplosions(deltaTime);
+    UpdateSmokeParticles(deltaTime);
+}
+
+
+void UpdatePlayerPosition2(double deltaTime)
 {
     double traction = tractionCoefficients.at(currentSurface);
 
