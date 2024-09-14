@@ -51,5 +51,11 @@
     <Image Include="explosion.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="track.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="tile.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

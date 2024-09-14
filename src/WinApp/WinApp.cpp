@@ -55,6 +55,9 @@ double g_wheelAngle = 0.0; // Wheel angle in radians, relative to the car's orie
 double g_playerRotationSpeed = 0.0;
 double g_playerSpeed = 0.0;
 
+// Two dimensional array to represent the track
+int g_track[64][64];
+
 // DirectX Global declarations
 // Create a Direct2D render target
 ID2D1HwndRenderTarget* g_pRenderTarget = nullptr;
@@ -70,6 +73,7 @@ ID2D1SolidColorBrush* g_pBlueBrush = nullptr;
 
 ID2D1Bitmap* g_pCarBitmap = nullptr;
 ID2D1Bitmap* g_pExplosionBitmap = nullptr;
+ID2D1Bitmap* g_pTileBitmap = nullptr;
 
 const int totalFrames = 48; // Total frames in the sprite sheet
 const int frameWidth = 240; // Width of each frame
@@ -126,6 +130,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void                CleanupDevice();
 HRESULT             LoadPngFromResource(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, UINT resourceID, ID2D1Bitmap** pBitmap);
+HRESULT             LoadPngFromResourceAndProcessPixels(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, UINT resourceID, ID2D1Bitmap** pBitmap);
 void                Render(double deltaTime);
 void                UpdatePlayerPosition(double deltaTime);
 
@@ -221,6 +226,183 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
+HRESULT LoadPngFromResourceAndProcessPixels(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, UINT resourceID, ID2D1Bitmap** pBitmap) {
+    if (!pRenderTarget || !pIWICFactory || !pBitmap) {
+        return E_POINTER;
+    }
+
+    // Load the PNG resource
+    IWICBitmapDecoder* pDecoder = nullptr;
+    IWICBitmapFrameDecode* pFrame = nullptr;
+    IWICFormatConverter* pConverter = nullptr;
+    IWICStream* pStream = nullptr;
+    HRSRC imageResHandle = nullptr;
+    HGLOBAL imageResDataHandle = nullptr;
+    void* pImageFile = nullptr;
+    DWORD imageFileSize = 0;
+
+    // Locate the resource
+    imageResHandle = FindResource(hInst, MAKEINTRESOURCE(resourceID), L"PNG");
+    if (!imageResHandle) {
+        return E_FAIL;
+    }
+
+    // Load the resource
+    imageResDataHandle = LoadResource(hInst, imageResHandle);
+    if (!imageResDataHandle) {
+        return E_FAIL;
+    }
+
+    // Lock the resource to get a pointer to the image data
+    pImageFile = LockResource(imageResDataHandle);
+    if (!pImageFile) {
+        return E_FAIL;
+    }
+
+    // Calculate the size of the resource
+    imageFileSize = SizeofResource(hInst, imageResHandle);
+    if (imageFileSize == 0) {
+        return E_FAIL;
+    }
+
+    // Create a WIC stream to map onto the memory
+    HRESULT hr = pIWICFactory->CreateStream(&pStream);
+    if (FAILED(hr)) {
+        return hr;
+    }
+
+    // Initialize the stream with the memory pointer and size
+    hr = pStream->InitializeFromMemory(reinterpret_cast<BYTE*>(pImageFile), imageFileSize);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    // Create a decoder for the stream
+    hr = pIWICFactory->CreateDecoderFromStream(pStream, nullptr, WICDecodeMetadataCacheOnLoad, &pDecoder);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    // Get the first frame of the image
+    hr = pDecoder->GetFrame(0, &pFrame);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pDecoder);
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    // Convert the image format to 32bppPBGRA
+    hr = pIWICFactory->CreateFormatConverter(&pConverter);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pFrame);
+        SAFE_RELEASE(pDecoder);
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    hr = pConverter->Initialize(
+        pFrame,
+        GUID_WICPixelFormat32bppPBGRA,
+        WICBitmapDitherTypeNone,
+        nullptr,
+        0.0,
+        WICBitmapPaletteTypeCustom
+    );
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pConverter);
+        SAFE_RELEASE(pFrame);
+        SAFE_RELEASE(pDecoder);
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    // Create a Direct2D bitmap from the WIC bitmap
+    hr = pRenderTarget->CreateBitmapFromWicBitmap(pConverter, nullptr, pBitmap);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pConverter);
+        SAFE_RELEASE(pFrame);
+        SAFE_RELEASE(pDecoder);
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    // Get the size of the bitmap
+    D2D1_SIZE_U size = (*pBitmap)->GetPixelSize();
+
+    // Lock the WIC bitmap to access pixel data
+    IWICBitmap* pWICBitmap = nullptr;
+    hr = pIWICFactory->CreateBitmapFromSource(pConverter, WICBitmapCacheOnLoad, &pWICBitmap);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pConverter);
+        SAFE_RELEASE(pFrame);
+        SAFE_RELEASE(pDecoder);
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    IWICBitmapLock* pLock = nullptr;
+    WICRect rcLock = { 0, 0, static_cast<INT>(size.width), static_cast<INT>(size.height) };
+    hr = pWICBitmap->Lock(&rcLock, WICBitmapLockRead, &pLock);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pWICBitmap);
+        SAFE_RELEASE(pConverter);
+        SAFE_RELEASE(pFrame);
+        SAFE_RELEASE(pDecoder);
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    // Get the pixel data
+    UINT cbBufferSize = 0;
+    BYTE* pv = nullptr;
+    hr = pLock->GetDataPointer(&cbBufferSize, &pv);
+    if (FAILED(hr)) {
+        SAFE_RELEASE(pLock);
+        SAFE_RELEASE(pWICBitmap);
+        SAFE_RELEASE(pConverter);
+        SAFE_RELEASE(pFrame);
+        SAFE_RELEASE(pDecoder);
+        SAFE_RELEASE(pStream);
+        return hr;
+    }
+
+    // Process each pixel
+    UINT stride = 0;
+    pLock->GetStride(&stride);
+    for (UINT y = 0; y < size.height; ++y) {
+        for (UINT x = 0; x < size.width; ++x) {
+            UINT pixelIndex = y * stride + x * 4; // Assuming 32bpp (4 bytes per pixel)
+            BYTE blue = pv[pixelIndex + 0];
+            BYTE green = pv[pixelIndex + 1];
+            BYTE red = pv[pixelIndex + 2];
+            BYTE alpha = pv[pixelIndex + 3];
+
+            // Process the pixel color (red, green, blue, alpha)
+            // For example, you can print the color values or use them to identify tiles
+            printf("Pixel (%u, %u): R=%u, G=%u, B=%u, A=%u\n", x, y, red, green, blue, alpha);
+
+            // Debug output
+            wchar_t debugMessage[256];
+            swprintf_s(debugMessage, L"Pixel (%u, %u): R=%u, G=%u, B=%u, A=%u\n", x, y, red, green, blue, alpha);
+            OutputDebugString(debugMessage);
+
+			g_track[x][y] = red != 0 || green != 0 || blue != 0 || alpha != 0 ? 1 : 0;
+        }
+    }
+
+    // Clean up
+    SAFE_RELEASE(pLock);
+    SAFE_RELEASE(pWICBitmap);
+    SAFE_RELEASE(pConverter);
+    SAFE_RELEASE(pFrame);
+    SAFE_RELEASE(pDecoder);
+    SAFE_RELEASE(pStream);
+
+    return S_OK;
+}
+
 HRESULT InitDeviceResources(HWND hWnd)
 {
     HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_pD2DFactory);
@@ -289,6 +471,16 @@ HRESULT InitDeviceResources(HWND hWnd)
     // https://www.hiclipart.com/free-transparent-background-png-clipart-plufo
     hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_EXPLOSION_ANIMATION, &g_pExplosionBitmap);
     if (FAILED(hr)) return hr;
+
+    hr = LoadPngFromResource(g_pRenderTarget, pIWICFactory, IDB_PNG_TILE, &g_pTileBitmap);
+    if (FAILED(hr)) return hr;
+
+    ID2D1Bitmap* pTrackBitmap = nullptr;
+    hr = LoadPngFromResourceAndProcessPixels(g_pRenderTarget, pIWICFactory, IDB_PNG_TRACK, &pTrackBitmap);
+    if (FAILED(hr)) return hr;
+
+	SAFE_RELEASE(pTrackBitmap);
+	SAFE_RELEASE(pIWICFactory);
 
 	return hr;
 }
@@ -368,8 +560,8 @@ void AddExplosion(const D2D1_POINT_2F& position) {
 
 void UpdatePlayerPosition(double deltaTime) {
     // Constants
-    const double maxSpeed = 200.0; // Maximum speed of the car
-    const double acceleration = 100.0; // Acceleration force
+    const double maxSpeed = 400.0; // Maximum speed of the car
+    const double acceleration = 200.0; // Acceleration force
     const double friction = 0.4; // Friction coefficient
     const double turnSensitivity = 2.0; // Sensitivity of turning
     const double slideFactor = 0.1; // Factor controlling the amount of slide during a turn
@@ -637,6 +829,24 @@ void Render(double deltaTime)
 
     g_pRenderTarget->BeginDraw();
     g_pRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Black));
+
+	// Loop through the track array and draw the track tiles
+    int scale = 100;
+	for (int y = 0; y < 64; y++) {
+		for (int x = 0; x < 64; x++) {
+			if (g_track[x][y] == 0) {
+				D2D1_RECT_F tileRect = D2D1::RectF(
+					x * scale, y * scale,
+					x * scale + scale, y * scale + scale);
+				g_pRenderTarget->DrawBitmap(g_pTileBitmap, tileRect);
+			}
+		}
+	}
+
+    //D2D1_RECT_F trackRect = D2D1::RectF(
+    //    0, 0,
+    //    640, 640);
+    //g_pRenderTarget->DrawBitmap(g_pTileBitmap, trackRect);
 
     for (const auto& mark : tireMarks) {
         g_pRenderTarget->DrawLine(mark.startPoint, mark.endPoint, g_pWhiteBrush, 2.0f); // Draw each tire mark as a line
@@ -912,6 +1122,7 @@ void CleanupDevice()
     SAFE_RELEASE(g_pBlueBrush);
     SAFE_RELEASE(g_pCarBitmap);
     SAFE_RELEASE(g_pExplosionBitmap);
+    SAFE_RELEASE(g_pTileBitmap);
     SAFE_RELEASE(g_pRenderTarget);
     SAFE_RELEASE(g_pD2DFactory);
     SAFE_RELEASE(g_pTextFormat);

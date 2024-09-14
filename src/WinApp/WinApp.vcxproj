@@ -142,6 +142,8 @@
     <Image Include="car.png" />
     <Image Include="explosion.png" />
     <Image Include="small.ico" />
+    <Image Include="tile.png" />
+    <Image Include="track.png" />
     <Image Include="WinApp.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
